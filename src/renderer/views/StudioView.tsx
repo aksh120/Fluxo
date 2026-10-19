@@ -234,11 +234,15 @@ export const StudioView: React.FC<StudioViewProps> = ({
               />
             </div>
             <div style={{ display: 'flex', gap: '6px' }}>
-              <KeyBadge
-                camelot={deckA.currentTrack?.camelotCode || '8A'}
-                musicalKey={deckA.currentTrack?.musicalKey || 'Am'}
-              />
-              <BpmBadge bpm={Number(getEffectiveBpm(deckA))} />
+              {deckA.currentTrack?.camelotCode && (
+                <KeyBadge
+                  camelot={deckA.currentTrack.camelotCode}
+                  musicalKey={deckA.currentTrack.musicalKey}
+                />
+              )}
+              {deckA.currentTrack?.bpm && (
+                <BpmBadge bpm={Number(getEffectiveBpm(deckA))} />
+              )}
             </div>
           </div>
 
@@ -288,7 +292,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   color: 'var(--text-primary)'
                 }}
               >
-                {deckA.currentTrack?.title || 'Solar Resonance'}
+                {deckA.currentTrack?.title || 'No Track Loaded'}
               </h4>
               <p
                 style={{
@@ -299,7 +303,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   textOverflow: 'ellipsis'
                 }}
               >
-                {deckA.currentTrack?.artist || 'Fluxo Sound Labs'}
+                {deckA.currentTrack?.artist || 'Load a track from library'}
               </p>
             </div>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--deck-a-primary)' }}>
@@ -791,11 +795,15 @@ export const StudioView: React.FC<StudioViewProps> = ({
               />
             </div>
             <div style={{ display: 'flex', gap: '6px' }}>
-              <KeyBadge
-                camelot={deckB.currentTrack?.camelotCode || '9A'}
-                musicalKey={deckB.currentTrack?.musicalKey || 'Em'}
-              />
-              <BpmBadge bpm={Number(getEffectiveBpm(deckB))} />
+              {deckB.currentTrack?.camelotCode && (
+                <KeyBadge
+                  camelot={deckB.currentTrack.camelotCode}
+                  musicalKey={deckB.currentTrack.musicalKey}
+                />
+              )}
+              {deckB.currentTrack?.bpm && (
+                <BpmBadge bpm={Number(getEffectiveBpm(deckB))} />
+              )}
             </div>
           </div>
 
@@ -845,7 +853,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   color: 'var(--text-primary)'
                 }}
               >
-                {deckB.currentTrack?.title || 'Neon Odyssey'}
+                {deckB.currentTrack?.title || 'No Track Loaded'}
               </h4>
               <p
                 style={{
@@ -856,7 +864,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   textOverflow: 'ellipsis'
                 }}
               >
-                {deckB.currentTrack?.artist || 'Fluxo Sound Labs'}
+                {deckB.currentTrack?.artist || 'Load a track from library'}
               </p>
             </div>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--deck-b-primary)' }}>

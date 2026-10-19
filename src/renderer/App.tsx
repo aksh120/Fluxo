@@ -78,7 +78,7 @@ export default function App() {
     currentTrack: null,
     isPlaying: false,
     currentTime: 0,
-    duration: 180,
+    duration: 0,
     playbackRate: 1.0,
     volume: 0.8,
     isMuted: false,
@@ -94,7 +94,7 @@ export default function App() {
     currentTrack: null,
     isPlaying: false,
     currentTime: 0,
-    duration: 210,
+    duration: 0,
     playbackRate: 1.0,
     volume: 0.8,
     isMuted: false,
@@ -122,15 +122,22 @@ export default function App() {
         .getLibraryTracks()
         .then((persisted) => {
           if (persisted && persisted.length > 0) {
-            setTracks((prev) => {
-              const ids = new Set(persisted.map((p) => p.id));
-              const nonDup = prev.filter((p) => !ids.has(p.id));
-              return [...nonDup, ...persisted];
-            });
+            setTracks(persisted);
             queueManagerRef.current.addTracks(persisted);
           }
         })
         .catch(console.error);
+
+      // Listen for newly added or downloaded tracks
+      if (window.fluxoAPI.onTrackAdded) {
+        window.fluxoAPI.onTrackAdded((newTrack) => {
+          setTracks((prev) => {
+            if (prev.some((t) => t.id === newTrack.id)) return prev;
+            return [newTrack, ...prev];
+          });
+          queueManagerRef.current.addTracks([newTrack]);
+        });
+      }
 
       // Listen for background directory scanner progress
       window.fluxoAPI.onScanProgress((prog) => {
@@ -668,6 +675,13 @@ export default function App() {
                 onLoadToDeck={(deckId, track) => handleLoadDeck(deckId, track)}
                 onAddToQueue={(track) => handleAddToQueue(track)}
                 onPlayTrack={(track) => handlePlayTrack(track)}
+                onTrackExtracted={(track) => {
+                  setTracks((prev) => {
+                    if (prev.some((t) => t.id === track.id)) return prev;
+                    return [track, ...prev];
+                  });
+                  queueManagerRef.current.addTracks([track]);
+                }}
               />
             )}
             {activeView === 'settings' && <SettingsView platformInfo={platformInfo} />}

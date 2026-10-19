@@ -185,12 +185,7 @@ export const PartyModeView: React.FC<PartyModeViewProps> = ({
             compatibility: Math.round(compatScore * 100)
           };
         })
-      : [
-          { id: 'q1', pos: 1, title: 'Midnight City', artist: 'M83', bpm: 105.0, key: '8B', isPinned: false, compatibility: 98 },
-          { id: 'q2', pos: 2, title: 'One More Time', artist: 'Daft Punk', bpm: 123.0, key: '8A', isPinned: true, compatibility: 96 },
-          { id: 'q3', pos: 3, title: 'Levels', artist: 'Avicii', bpm: 126.0, key: '7A', isPinned: false, compatibility: 93 },
-          { id: 'q4', pos: 4, title: 'Satisfaction', artist: 'Benny Benassi', bpm: 130.0, key: '7A', isPinned: false, compatibility: 89 }
-        ];
+      : [];
 
   const partyVibes = [
     { id: 'steady', ...ENERGY_PROFILES.steady, icon: <Radio size={18} /> },
@@ -492,7 +487,23 @@ export const PartyModeView: React.FC<PartyModeViewProps> = ({
 
         {/* Sequenced Queue Tracks List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto' }}>
-          {displayQueue.map((item) => (
+          {displayQueue.length === 0 ? (
+            <div
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '32px',
+                color: 'var(--text-muted)',
+                fontSize: '13px',
+                textAlign: 'center'
+              }}
+            >
+              Queue is currently empty. Add tracks from your Music Library or YouTube to start autonomous party mixing.
+            </div>
+          ) : (
+            displayQueue.map((item) => (
             <div
               key={item.id}
               style={{
@@ -587,7 +598,8 @@ export const PartyModeView: React.FC<PartyModeViewProps> = ({
                 )}
               </div>
             </div>
-          ))}
+          ))
+        )}
         </div>
       </div>
     </div>

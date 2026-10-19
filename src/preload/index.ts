@@ -70,8 +70,14 @@ const fluxoAPI: FluxoAPI = {
   // YouTube Audio Extraction & Streaming (Phase 12)
   searchYouTube: (query, limit) => ipcRenderer.invoke('youtube:search', query, limit),
   extractYouTubeAudio: (identifier) => ipcRenderer.invoke('youtube:extract', identifier),
+  getYoutubeCachedTracks: () => ipcRenderer.invoke('youtube:get-cached-tracks'),
   getYouTubeCacheStats: () => ipcRenderer.invoke('youtube:get-cache-stats'),
-  clearYouTubeCache: () => ipcRenderer.invoke('youtube:clear-cache')
+  clearYouTubeCache: () => ipcRenderer.invoke('youtube:clear-cache'),
+  onTrackAdded: (callback) => {
+    const handler = (_event: any, track: any) => callback(track);
+    ipcRenderer.on('library:track-added', handler);
+    return () => ipcRenderer.removeListener('library:track-added', handler);
+  }
 };
 
 // Expose safe API to the renderer process

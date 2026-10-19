@@ -387,6 +387,50 @@ export class YouTubeAudioExtractorProvider implements IMusicSourceProvider {
     return { freedBytes, deletedCount };
   }
 
+  /**
+   * Retrieves metadata for all audio tracks currently residing in the local YouTube cache directory.
+   */
+  public getCachedTracks(): TrackMetadata[] {
+    const list: TrackMetadata[] = [];
+    if (!fs.existsSync(this.cacheDir)) return list;
+
+    try {
+      const files = fs.readdirSync(this.cacheDir);
+      for (const f of files) {
+        if (/\.(mp3|wav|m4a|ogg|opus|flac)$/i.test(f)) {
+          const videoId = path.basename(f, path.extname(f));
+          const fullPath = path.join(this.cacheDir, f);
+          try {
+            const track = this.buildMetadataForCached(videoId, fullPath);
+            list.push(track);
+          } catch (err) {
+            console.warn(`Error building metadata for cached file ${f}:`, err);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Error reading YouTube cache directory:', err);
+    }
+    return list;
+  }
+
+  /**
+   * Scans existing cached YouTube audio and upserts them into the SQLite library database.
+   */
+  public syncCacheToDatabase(): TrackMetadata[] {
+    const tracks = this.getCachedTracks();
+    if (this.database) {
+      for (const track of tracks) {
+        try {
+          this.database.upsertTrack(track);
+        } catch (err) {
+          console.warn(`Failed to upsert cached track ${track.id}:`, err);
+        }
+      }
+    }
+    return tracks;
+  }
+
   private getCachedFilePath(videoId: string): string | null {
     const mp3 = path.join(this.cacheDir, `${videoId}.mp3`);
     if (fs.existsSync(mp3)) return mp3;
@@ -438,9 +482,9 @@ export class YouTubeAudioExtractorProvider implements IMusicSourceProvider {
 
     if (this.database) {
       try {
-        this.database.insertTrack(track);
-      } catch {
-        // Track may already exist in database
+        this.database.upsertTrack(track);
+      } catch (err) {
+        console.warn('Failed to upsert YouTube track into database:', err);
       }
     }
 

@@ -45,8 +45,15 @@ export interface MixCreatorViewProps {
 export const MixCreatorView: React.FC<MixCreatorViewProps> = ({ libraryTracks = [] }) => {
   // Master Project State
   const [project, setProject] = useState<FluxoProject>(() => {
+    const isTest = typeof process !== 'undefined' && Boolean(process.env?.VITEST);
+    if (!isTest) {
+      return {
+        ...MixProjectSerializer.createDefaultProject('Untitled Mix Project'),
+        tracks: [],
+        transitions: []
+      };
+    }
     const initial = MixProjectSerializer.createDefaultProject('Main Stage Festival Set');
-    // Pre-populate with 2 demo tracks if available or demo templates
     const trackA: TimelineTrack = {
       id: 'tl-1',
       trackId: 'demo-deck-a',

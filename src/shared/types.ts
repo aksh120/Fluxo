@@ -207,8 +207,10 @@ export interface FluxoAPI {
   // YouTube Audio Extraction & Streaming (Phase 12)
   searchYouTube: (query: string, limit?: number) => Promise<any[]>;
   extractYouTubeAudio: (identifier: string) => Promise<TrackMetadata>;
+  getYoutubeCachedTracks: () => Promise<TrackMetadata[]>;
   getYouTubeCacheStats: () => Promise<{ totalBytes: number; trackCount: number; formattedSize: string }>;
   clearYouTubeCache: () => Promise<{ freedBytes: number; deletedCount: number }>;
+  onTrackAdded?: (callback: (track: TrackMetadata) => void) => () => void;
 }
 
 // Phase 11: Multi-Track Timeline & Project Types

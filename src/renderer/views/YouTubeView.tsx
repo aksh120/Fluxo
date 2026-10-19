@@ -26,12 +26,14 @@ export interface YouTubeViewProps {
   onLoadToDeck?: (deckId: 'A' | 'B', track: TrackMetadata) => void;
   onAddToQueue?: (track: TrackMetadata) => void;
   onPlayTrack?: (track: TrackMetadata) => void;
+  onTrackExtracted?: (track: TrackMetadata) => void;
 }
 
 export const YouTubeView: React.FC<YouTubeViewProps> = ({
   onLoadToDeck,
   onAddToQueue,
-  onPlayTrack
+  onPlayTrack,
+  onTrackExtracted
 }) => {
   const [activeTab, setActiveTab] = useState<'search' | 'browse'>('search');
   const [query, setQuery] = useState('');
@@ -58,9 +60,27 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
     setTimeout(() => setStatusMessage(null), 4000);
   };
 
-  // Load cache statistics on mount
+  // Load cache statistics and pre-populate all cached tracks on mount
   useEffect(() => {
     refreshCacheStats();
+    if (typeof window !== 'undefined' && (window as any).fluxoAPI?.getYoutubeCachedTracks) {
+      (window as any).fluxoAPI
+        .getYoutubeCachedTracks()
+        .then((cachedList: TrackMetadata[]) => {
+          if (cachedList && cachedList.length > 0) {
+            setExtractedTracks((prev) => {
+              const next = new Map(prev);
+              for (const t of cachedList) {
+                const videoId = t.id.replace(/^yt-/, '');
+                next.set(videoId, t);
+                next.set(t.id, t);
+              }
+              return next;
+            });
+          }
+        })
+        .catch(console.error);
+    }
   }, []);
 
   const refreshCacheStats = async () => {
@@ -180,11 +200,17 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
         };
       }
 
-      setExtractedTracks((prev) => new Map(prev).set(item.id, meta));
+      setExtractedTracks((prev) => {
+        const next = new Map(prev);
+        next.set(item.id, meta);
+        next.set(meta.id, meta);
+        return next;
+      });
       setSearchResults((prev) =>
         prev.map((r) => (r.id === item.id ? { ...r, isExtracted: true, filePath: meta.filePath } : r))
       );
 
+      onTrackExtracted?.(meta);
       refreshCacheStats();
       showStatus(`Extracted & ready: "${meta.title}"`);
       return meta;
@@ -668,7 +694,10 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
               { id: 'kXYiU_JCYtU', sourceType: 'youtube' as const, title: 'Numb / Encore (Mashup)', artist: 'Linkin Park & Jay-Z', duration: 205, bpm: 107.0, key: '8A' }
             ]).map((item) => {
               const isExtractingThis = extractingId === item.id;
-              const isCached = item.isExtracted || extractedTracks.has(item.id);
+              const isCached =
+                item.isExtracted ||
+                extractedTracks.has(item.id) ||
+                extractedTracks.has('yt-' + item.id);
 
               return (
                 <div
@@ -728,14 +757,15 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
                               fontWeight: 600,
                               color: '#22C55E',
                               backgroundColor: 'rgba(34, 197, 94, 0.12)',
-                              padding: '1px 6px',
+                              border: '1px solid rgba(34, 197, 94, 0.3)',
+                              padding: '2px 8px',
                               borderRadius: '4px',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '3px'
+                              gap: '4px'
                             }}
                           >
-                            <CheckCircle2 size={10} /> Cached
+                            <CheckCircle2 size={11} /> Downloaded
                           </span>
                         )}
                       </div>
@@ -750,7 +780,7 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
                     {item.key && <KeyBadge camelot={item.key} />}
                     {item.bpm && <BpmBadge bpm={item.bpm} />}
 
-                    {/* Extract Button */}
+                    {/* Extract / Downloaded Button */}
                     {!isCached ? (
                       <Button
                         variant="secondary"
@@ -763,12 +793,18 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
                       </Button>
                     ) : (
                       <Button
-                        variant="ghost"
+                        variant="secondary"
                         size="sm"
                         onClick={() => handlePlayDirect(item)}
-                        leftIcon={<Play size={13} />}
+                        leftIcon={<CheckCircle2 size={13} color="#22C55E" />}
+                        style={{
+                          borderColor: 'rgba(34, 197, 94, 0.4)',
+                          color: '#4ADE80',
+                          backgroundColor: 'rgba(34, 197, 94, 0.08)'
+                        }}
+                        title="Downloaded to local library - click to play"
                       >
-                        Play
+                        Downloaded
                       </Button>
                     )}
 

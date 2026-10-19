@@ -323,12 +323,30 @@ const youtubeProvider = new YouTubeAudioExtractorProvider({
   database
 });
 
+// Immediately sync any existing cached YouTube audio tracks into SQLite library
+try {
+  youtubeProvider.syncCacheToDatabase();
+} catch (err) {
+  console.warn('Failed to sync existing YouTube cache to database on startup:', err);
+}
+
 ipcMain.handle('youtube:search', async (_event, query: string, limit?: number) => {
   return youtubeProvider.search(query, limit);
 });
 
 ipcMain.handle('youtube:extract', async (_event, identifier: string) => {
-  return youtubeProvider.extractAudio(identifier);
+  const track = await youtubeProvider.extractAudio(identifier);
+  if (track) {
+    try {
+      database.upsertTrack(track);
+    } catch {}
+    mainWindow?.webContents.send('library:track-added', track);
+  }
+  return track;
+});
+
+ipcMain.handle('youtube:get-cached-tracks', async () => {
+  return youtubeProvider.getCachedTracks();
 });
 
 ipcMain.handle('youtube:get-cache-stats', async () => {

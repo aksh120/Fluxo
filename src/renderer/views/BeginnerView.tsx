@@ -272,7 +272,7 @@ export const BeginnerView: React.FC<BeginnerViewProps> = ({
                   UP NEXT IN QUEUE
                 </span>
                 <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {nextTrack?.title || standbyDeck.currentTrack?.title || 'Automatic Queue Preloaded'}
+                  {nextTrack?.title || standbyDeck.currentTrack?.title || 'No upcoming track in queue'}
                 </span>
               </div>
             </div>
