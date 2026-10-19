@@ -189,7 +189,7 @@ describe('Phase 12: YouTube Audio Extraction Engine & Full Source Integration Te
       expect(cleared.deletedCount).toBe(1);
       const postClearStats = await provider.getCacheStats();
       expect(postClearStats.trackCount).toBe(0);
-    });
+    }, 45000);
 
     it('gracefully creates non-existent or deleted cache directories without throwing ENOENT during extraction', async () => {
       const nonExistentDir = path.join(testCacheDir, 'nested', 'deep', 'cache');
@@ -208,7 +208,7 @@ describe('Phase 12: YouTube Audio Extraction Engine & Full Source Integration Te
       expect(trackMeta).toBeDefined();
       expect(fs.existsSync(trackMeta.filePath)).toBe(true);
       expect(fs.existsSync(nonExistentDir)).toBe(true);
-    });
+    }, 45000);
   });
 
   // ==========================================

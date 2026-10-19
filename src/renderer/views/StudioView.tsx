@@ -46,6 +46,10 @@ export interface StudioViewProps {
   onActivateLoopB?: (beats: LoopLength) => void;
   onToggleLoopA?: () => void;
   onToggleLoopB?: () => void;
+  onHalveLoopA?: () => void;
+  onDoubleLoopA?: () => void;
+  onHalveLoopB?: () => void;
+  onDoubleLoopB?: () => void;
   onJumpCueA?: (padIndex: number) => void;
   onJumpCueB?: (padIndex: number) => void;
   onSetCueA?: (padIndex: number) => void;
@@ -77,6 +81,10 @@ export const StudioView: React.FC<StudioViewProps> = ({
   onActivateLoopB,
   onToggleLoopA,
   onToggleLoopB,
+  onHalveLoopA,
+  onDoubleLoopA,
+  onHalveLoopB,
+  onDoubleLoopB,
   onJumpCueA,
   onJumpCueB,
   onSetCueA,

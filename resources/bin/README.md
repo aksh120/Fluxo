@@ -6,6 +6,10 @@ This directory contains external auxiliary binaries bundled with the packaged Fl
   1. Offline multi-track mix rendering (encoding Float32 interleaved PCM to 320 kbps MP3 or lossless FLAC).
   2. Local YouTube audio stream demuxing and caching.
 
+- **`yt-dlp.exe`**: Standalone audio/video extractor used for:
+  1. Querying real search results and metadata from YouTube without requiring API keys.
+  2. Extracting high-bitrate audio streams directly into the local application cache.
+
 ## Dynamic Path Resolution Hierarchy
 
 Fluxo dynamically resolves `ffmpeg.exe` at runtime in the following order of precedence:

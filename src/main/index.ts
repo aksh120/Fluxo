@@ -39,7 +39,8 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false, // Required for custom preload IPC access
-      webSecurity: true
+      webSecurity: true,
+      webviewTag: true
     }
   });
 

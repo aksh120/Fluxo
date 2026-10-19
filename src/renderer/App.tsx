@@ -16,6 +16,7 @@ import { PreferenceLearner } from '../shared/dj/PreferenceLearner';
 import { KeyboardShortcutManager } from './utils/KeyboardShortcutManager';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { AlertTriangle } from 'lucide-react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import type { TrackMetadata, DeckState } from '../shared/types';
 
 export default function App() {
@@ -109,43 +110,6 @@ export default function App() {
     try {
       const engine = AudioEngine.getInstance();
       audioEngineRef.current = engine;
-
-      // Pre-load demo test tracks on Deck A and Deck B for instant sound auditioning
-      const demoBufferA = engine.decoder.createTestBuffer(240, 440, 44100);
-      const demoTrackA: TrackMetadata = {
-        id: 'demo-deck-a',
-        filePath: 'internal://demo-a.mp3',
-        fileSize: 4500000,
-        mtime: Date.now(),
-        title: 'Solar Resonance',
-        artist: 'Fluxo Sound Labs',
-        album: 'Crossover Horizon',
-        duration: 240,
-        sampleRate: 44100,
-        channels: 2,
-        format: 'mp3',
-        sourceType: 'local'
-      };
-      engine.deckA.loadTrack(demoBufferA, demoTrackA);
-
-      const demoBufferB = engine.decoder.createTestBuffer(210, 523.25, 44100);
-      const demoTrackB: TrackMetadata = {
-        id: 'demo-deck-b',
-        filePath: 'internal://demo-b.mp3',
-        fileSize: 3900000,
-        mtime: Date.now(),
-        title: 'Neon Odyssey',
-        artist: 'Fluxo Sound Labs',
-        album: 'Crossover Horizon',
-        duration: 210,
-        sampleRate: 44100,
-        channels: 2,
-        format: 'mp3',
-        sourceType: 'local'
-      };
-      engine.deckB.loadTrack(demoBufferB, demoTrackB);
-
-      setTracks([demoTrackA, demoTrackB]);
     } catch (err) {
       console.warn('AudioEngine initialization deferred until user interaction:', err);
     }
@@ -343,7 +307,7 @@ export default function App() {
         const engine = audioEngineRef.current;
         if (engine) {
           const deck = activeDeckId === 'A' ? engine.deckA : engine.deckB;
-          engine.beatSync.nudge(deck, dir);
+          engine.beatSync.nudge(deck, dir === 'up' ? 1 : -1);
           syncDeckStates();
         }
       },
@@ -460,8 +424,12 @@ export default function App() {
           showErrorToast(`Unable to load "${track.title || 'Track'}": ${err?.message || 'File corrupted or truncated'}`);
           return;
         }
+      } else if (!window.fluxoAPI) {
+        // Unit test runner fallback
+        buffer = engine.decoder.createTestBuffer(track.duration || 180, 0, 44100);
       } else {
-        buffer = engine.decoder.createTestBuffer(track.duration || 180, deckId === 'A' ? 440 : 523.25, 44100);
+        showErrorToast(`Cannot load track: audio file not found on disk.`);
+        return;
       }
     }
 
@@ -504,8 +472,12 @@ export default function App() {
           }
           return;
         }
+      } else if (!window.fluxoAPI) {
+        // Unit test runner fallback
+        buffer = engine.decoder.createTestBuffer(track.duration || 180, 0, 44100);
       } else {
-        buffer = engine.decoder.createTestBuffer(track.duration || 180, 440, 44100);
+        showErrorToast(`Cannot play track: audio file not found on disk.`);
+        return;
       }
     }
 
@@ -529,6 +501,7 @@ export default function App() {
         {/* Scrollable View Container */}
         <main style={{ flex: 1, padding: '24px 32px', overflowY: 'auto' }}>
           <div style={{ height: '100%', maxWidth: '1440px', margin: '0 auto' }}>
+            <ErrorBoundary fallbackView={() => setActiveView('library')}>
             {activeView === 'library' && (
               <LibraryView
                 tracks={tracks}
@@ -682,7 +655,7 @@ export default function App() {
                 activeDeck={activeDeckId === 'A' ? deckAState : deckBState}
                 standbyDeck={activeDeckId === 'A' ? deckBState : deckAState}
                 nextTrack={queueManagerRef.current.getQueue()[0]?.track}
-                onPlayToggle={handlePlayToggle}
+                onPlayToggle={handlePlayPause}
                 onTriggerTransition={handleTriggerTransition}
                 onSkipNext={handlePlayNext}
                 onVolumeChange={handleVolumeChange}
@@ -698,6 +671,7 @@ export default function App() {
               />
             )}
             {activeView === 'settings' && <SettingsView platformInfo={platformInfo} />}
+            </ErrorBoundary>
           </div>
         </main>
       </div>

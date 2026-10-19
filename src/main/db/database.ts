@@ -13,15 +13,32 @@ export class FluxoDatabase {
   private db: Database.Database;
 
   constructor(options: DatabaseOptions = {}) {
+    let nativeBinding: string | undefined = undefined;
+    if (typeof process !== 'undefined' && process.versions && (process.versions as any).electron) {
+      if (process.resourcesPath) {
+        const packaged = path.join(process.resourcesPath, 'bin', 'better_sqlite3_electron.node');
+        if (fs.existsSync(packaged)) nativeBinding = packaged;
+      }
+      if (!nativeBinding) {
+        const localDev = path.join(process.cwd(), 'resources', 'bin', 'better_sqlite3_electron.node');
+        if (fs.existsSync(localDev)) nativeBinding = localDev;
+      }
+    }
+
+    const dbOptions: any = {};
+    if (nativeBinding) {
+      dbOptions.nativeBinding = nativeBinding;
+    }
+
     if (options.inMemory) {
-      this.db = new Database(':memory:');
+      this.db = new Database(':memory:', dbOptions);
     } else {
       const dbFile = options.dbPath || path.join(process.cwd(), 'fluxo.sqlite');
       const dir = path.dirname(dbFile);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      this.db = new Database(dbFile);
+      this.db = new Database(dbFile, dbOptions);
     }
 
     this.configurePragmas();

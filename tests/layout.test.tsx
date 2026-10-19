@@ -185,7 +185,7 @@ describe('Phase 2 Desktop Layout & Navigation Tests', () => {
 
     // Initially on Library
     expect(screen.getByPlaceholderText(/search tracks, artists, albums/i)).toBeDefined();
-    expect(screen.getByText(/Solar Resonance/i)).toBeDefined();
+    expect(screen.getByText(/Your Music Library is Empty/i)).toBeDefined();
 
     // Switch to Party Mode
     const partyNav = screen.getByRole('button', { name: /party mode/i });
@@ -199,8 +199,19 @@ describe('Phase 2 Desktop Layout & Navigation Tests', () => {
     expect(screen.getByText('DECK B')).toBeDefined();
     expect(screen.getByText('CROSSFADER')).toBeDefined();
 
+    // Switch to Beginner Player
+    const beginnerNav = screen.getByRole('button', { name: /beginner player/i });
+    fireEvent.click(beginnerNav);
+    expect(screen.getByText(/MIX VIBE:/i)).toBeDefined();
+    expect(screen.getByText(/NOW PLAYING/i)).toBeDefined();
+
+    // Switch to Mix Creator
+    const creatorNav = screen.getByRole('button', { name: /mix creator/i });
+    fireEvent.click(creatorNav);
+    expect(screen.getByText(/Mix Creator & Timeline Studio/i)).toBeDefined();
+
     // Switch to YouTube Extractor
-    const ytNav = screen.getByRole('button', { name: /youtube music/i });
+    const ytNav = screen.getByRole('button', { name: /youtube/i });
     fireEvent.click(ytNav);
     expect(screen.getByText(/youtube high-fidelity audio extractor/i)).toBeDefined();
 
