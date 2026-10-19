@@ -71,13 +71,13 @@ export class TransitionPlanner {
     hasStemsB = false,
     forceFamily?: TransitionFamily
   ): TransitionPlan {
+    const bpmA = trackA.bpm || analysisA?.bpm;
+    const bpmB = trackB.bpm || analysisB?.bpm;
+
     // 1. Fallback evaluation if analysis is missing
-    if (!analysisA || !analysisB || !trackA.bpm || !trackB.bpm) {
+    if (!analysisA || !analysisB || !bpmA || !bpmB) {
       return this.buildFallbackPlan(trackA, trackB);
     }
-
-    const bpmA = trackA.bpm;
-    const bpmB = trackB.bpm;
 
     // 2. Tempo compatibility score (supports 1x, 0.5x half-time, 2.0x double-time)
     const tempoRatio = bpmB / bpmA;
@@ -93,30 +93,36 @@ export class TransitionPlanner {
     }
 
     // 3. Harmonic Key compatibility score
+    const keyA = (analysisA as any).key || analysisA.camelotCode;
+    const keyB = (analysisB as any).key || analysisB.camelotCode;
     let keyScore = 0.5;
-    if (analysisA.key && analysisB.key) {
+    if (keyA && keyB) {
       const harm = calculateHarmonicScore(
-        { camelotCode: analysisA.key, title: trackA.title, artist: trackA.artist },
-        { camelotCode: analysisB.key, title: trackB.title, artist: trackB.artist }
+        { camelotCode: keyA, title: trackA.title, artist: trackA.artist },
+        { camelotCode: keyB, title: trackB.title, artist: trackB.artist }
       );
-      keyScore = harm.score;
+      keyScore = harm.score > 1.0 ? harm.score / 100 : harm.score;
     }
 
     // 4. Energy continuity score
-    const energyA = analysisA.energy ?? 0.5;
-    const energyB = analysisB.energy ?? 0.5;
+    const energyA = (analysisA as any).energy ?? analysisA.energyLevel ?? 0.5;
+    const energyB = (analysisB as any).energy ?? analysisB.energyLevel ?? 0.5;
     const energyDelta = Math.abs(energyA - energyB);
     const energyScore = Math.max(0.2, 1.0 - energyDelta * 1.2);
 
     // 5. Phrase alignment calculation
     const beatDurationA = 60 / bpmA;
     const barDurationA = beatDurationA * 4;
-    const phraseScore = (analysisA.beatGrid && analysisB.beatGrid) ? 0.95 : 0.7;
+    const phraseScore = ((analysisA as any).beatGrid || analysisA.beatGridJson) && ((analysisB as any).beatGrid || analysisB.beatGridJson) ? 0.95 : 0.7;
 
     // 6. Vocal activity evaluation
     const vocalRatioA = vocalA?.vocalActivityRatio ?? 0.4;
     const vocalRatioB = vocalB?.vocalActivityRatio ?? 0.4;
-    const stemAvailability = hasStemsA || hasStemsB;
+    const stemAvailability =
+      hasStemsA ||
+      hasStemsB ||
+      Boolean(analysisA.stemsPath) ||
+      Boolean(analysisB.stemsPath);
 
     let vocalScore = 0.75;
     if (vocalRatioA > 0.6 && vocalRatioB > 0.6 && !stemAvailability) {

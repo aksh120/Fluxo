@@ -772,3 +772,48 @@ $$\text{Score} = w_{\text{tempo}} C_{\text{tempo}} + w_{\text{key}} C_{\text{key
   - **Assisted DJ**: Fluxo suggests optimal transition points and styles; user triggers or adjusts timing.
   - **Manual DJ**: Full hands-on control of pitch, EQ isolators, cue points, loops, and crossfader.
 
+---
+
+## 25. Fluxo Autopilot: Fully Autonomous AI DJ System Specification
+
+### 25.1 System Overview & Autopilot Mission
+**Autopilot** is a distinct, dedicated page and autonomous orchestrator inside Fluxo designed to deliver true hands-free, intelligent DJ mixing across the user's entire accessible music library. While DJ Studio serves as an interactive dual-deck environment for manual/assisted mixing, Autopilot operates as an autonomous resident DJ:
+- **Zero Prerequisite Burden**: The user selects a library or uses the existing index, clicks "Start DJ", and the system autonomously plans, analyzes, sequences, beatmatches, and mixes tracks without human intervention.
+- **Whole-Library Progressive Discovery**: Indexes all local music files and YouTube cache items recursively, tracking 3 tiers of analysis (Level 1: Fast Metadata & Peaks, Level 2: Deep BPM, Key, Beats & Phrases, Level 3: Neural Stems & Vocal VAD) without blocking playback start.
+- **Autonomous Set & Energy Arc Planning**: Constructs multi-track playlists adhering to user-selected energy arcs (Warm-up, Gradual Build, Steady Groove, Peak Party, Continuous High-Energy, Wind-Down) using multi-factor compatibility scoring, harmonic mixing rules, and repetition penalties.
+- **Sample-Accurate Audio Mixing**: Alternates automatically between Deck A and Deck B using `TransitionEngine` and `VocalCrossoverEngine`, executing phrase-aligned beatmixes, bass swaps, vocal crossovers, or safe fallbacks.
+- **Transition Quality Auditing & Local Learning**: Records every executed mix with detailed metrics (drift, duration, confidence, stem usage, fallback status) and allows user feedback (Good Mix, Bad Mix, Too Fast, Vocals Clashed, Wrong Energy) to dynamically tune selection heuristics.
+- **Safe Manual Takeover & Transport Controls**: Immediate pause, safe stop, track skipping, track locking, queue regeneration, and seamless handoff to DJ Studio with zero audio glitches.
+
+### 25.2 State Machine Topology
+```
+[ Idle ] ──► [ Library Discovery ] ──► [ Fast / Deep Analysis ]
+   ▲                                              │
+   │                                              ▼
+[ Stopped ] ◄── [ Safe Takeover ] ◄─── [ Planning Next Set ]
+   ▲                                              │
+   │                                              ▼
+[ Error ] ◄─── [ Fallback / Recovery ] ◄── [ Preparing Next Track ]
+                                                  │
+                                                  ▼
+                                            [ Playing Deck A ]
+                                                  │ (32 bars prior to end)
+                                                  ▼
+                                            [ Transitioning A -> B ]
+                                                  │
+                                                  ▼
+                                            [ Playing Deck B ]
+```
+
+### 25.3 UI Architecture (AutopilotView.tsx)
+1. **Main Header**:
+   - Status badge, session title, audio output info, prominent Start/Stop DJ button, Safe Takeover trigger.
+2. **Library Intelligence Panel**:
+   - Discovered tracks, Indexed tracks, Analysed tracks, Tracks with cached stems, Awaiting analysis count, Coverage percentage, and scope filters.
+3. **Session Configuration**:
+   - Energy Profile presets, Familiarity vs Discovery slider, Vocal vs Instrumental slider, Smooth vs Creative slider, Processing quality level (Low Resource, Balanced, Quality).
+4. **Live Performance View**:
+   - Current playing track info & artwork, scrolling real-time waveform canvas with beatgrid alignment and vocal overlays, next track preview card, live transition state badge, transport controls, and feedback rating buttons.
+5. **Upcoming Set Sequence**:
+   - Interactive 5-10 track lookahead queue with BPM/Key badges, planned transition family tags, confidence ratings, drag-and-drop reordering, track locking pins, track exclusion, and set regeneration.
+

@@ -8,11 +8,12 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Compass
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 
-export type AppView = 'library' | 'party' | 'studio' | 'beginner' | 'creator' | 'youtube' | 'settings';
+export type AppView = 'library' | 'autopilot' | 'party' | 'studio' | 'beginner' | 'creator' | 'youtube' | 'settings';
 
 export interface SidebarProps {
   activeView: AppView;
@@ -34,6 +35,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       id: 'library',
       label: 'Music Library',
       icon: <Music size={18} />
+    },
+    {
+      id: 'autopilot',
+      label: 'Autopilot',
+      icon: <Compass size={18} color="var(--accent-cyan)" />,
+      badge: 'AI DJ'
     },
     {
       id: 'party',

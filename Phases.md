@@ -500,3 +500,38 @@ flowchart TD
 - **Required Tests**: Vitest unit, integration, and DSP test suite in `tests/dj_studio_engine.test.tsx`.
 - **Definition of Done**: All 8 Phase 16 tasks implemented, verified via automated tests, documented in `Tasks.md`, and signed off.
 
+---
+
+## Phase 17: Fluxo Autopilot: Fully Autonomous AI DJ System
+- **Phase ID**: `PHASE-17`
+- **Objective**: Implement the fully autonomous AI DJ system (`AutopilotView.tsx`) that discovers and manages the entire accessible music library, plans complete sets across adjustable energy arcs, prioritizes progressive background analysis, executes real phrase-aligned transitions, audits mix quality, and enables seamless manual takeover.
+- **Dependencies**: `PHASE-07`, `PHASE-12`, `PHASE-16`.
+- **Scope & Deliverables**:
+  - Autopilot State Machine & Orchestrator Engine (`AutopilotEngine.ts`).
+  - Autonomous Set Planner & Energy Arc Generator (`AutopilotPlanner.ts`).
+  - Autonomous Audio Mixing & Transition Scheduling Coordinator integrating with `TransitionEngine` and `VocalCrossoverEngine`.
+  - Transition Audit Logging, Quality Evaluation & User Feedback Store (`AutopilotAuditStore.ts`).
+  - Session Configuration Presets and Library Intelligence Metrics service.
+  - Autopilot User Interface (`AutopilotView.tsx`) with Main Header, Library Intelligence, Session Configuration, Live Performance Waveform strip, and Upcoming Set manager.
+  - Sidebar navigation and view routing with safe manual takeover to DJ Studio (`Sidebar.tsx`, `App.tsx`).
+  - Comprehensive automated test suite and QA verification (`tests/autopilot_engine.test.tsx`).
+- **Task References**:
+  - `P17-T001`: Autopilot State Machine & Orchestrator Engine (`AutopilotEngine.ts`).
+  - `P17-T002`: Autonomous Set Planner & Energy Arc Generator (`AutopilotPlanner.ts`).
+  - `P17-T003`: Autonomous Audio Mixing & Transition Scheduling Coordinator.
+  - `P17-T004`: Transition Audit Logging, Quality Evaluation & User Feedback Store (`AutopilotAuditStore.ts`).
+  - `P17-T005`: Autopilot Session Configuration & Library Intelligence Metrics.
+  - `P17-T006`: Autopilot Live Performance & Upcoming Set UI Component (`AutopilotView.tsx`).
+  - `P17-T007`: Sidebar Navigation, View Routing & Safe Takeover Integration (`App.tsx`, `Sidebar.tsx`).
+  - `P17-T008`: Comprehensive Autopilot Autonomous DJ Test Suite & End-to-End QA (`tests/autopilot_engine.test.tsx`).
+- **Acceptance Criteria**:
+  - Autopilot operates as a distinct, dedicated page with hands-free autonomous playback across the complete music library.
+  - Progressive analysis prioritizes playback start (< 250ms), running deep analysis and stems in the background.
+  - Autonomous Set Planner constructs coherent sets adhering to energy arcs (Warm-up, Build, Groove, Peak, Continuous, Wind-down).
+  - Real audio mixing executed across both decks with beatmatching, phrase alignment, vocal crossover, and fallbacks.
+  - Transition audit store captures execution metrics and user feedback without external network dependencies.
+  - Safe manual takeover transitions to DJ Studio with zero audio dropouts.
+- **Required Tests**: Vitest automated QA test suite in `tests/autopilot_engine.test.tsx`.
+- **Definition of Done**: All 8 Phase 17 tasks implemented, verified, documented in `Tasks.md`, and signed off.
+
+

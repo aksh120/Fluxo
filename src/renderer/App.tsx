@@ -5,6 +5,7 @@ import { NowPlayingBar } from './components/NowPlayingBar';
 import { LibraryView } from './views/LibraryView';
 import { PartyModeView } from './views/PartyModeView';
 import { StudioView } from './views/StudioView';
+import { AutopilotView } from './views/AutopilotView';
 import { BeginnerView } from './views/BeginnerView';
 import { MixCreatorView } from './views/MixCreatorView';
 import { YouTubeView } from './views/YouTubeView';
@@ -520,6 +521,18 @@ export default function App() {
                 onDeleteTrack={handleDeleteTrack}
                 isScanning={isScanning}
                 scanProgress={scanProgress}
+              />
+            )}
+            {activeView === 'autopilot' && (
+              <AutopilotView
+                libraryTracks={tracks}
+                isScanning={isScanning}
+                onTakeoverToStudio={(targetDeck, track) => {
+                  setActiveView('studio');
+                  if (track) {
+                    handleLoadDeck(targetDeck, track);
+                  }
+                }}
               />
             )}
             {activeView === 'party' && (

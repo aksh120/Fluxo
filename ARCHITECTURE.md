@@ -249,3 +249,34 @@ The Mix Creator saves sessions to a portable, human-readable JSON schema:
   ]
 }
 ```
+
+---
+
+## 7. Autonomous AI DJ Subsystem: Autopilot Architecture
+
+### 7.1 Component Relationship & Flow
+The **Autopilot** subsystem orchestrates end-to-end hands-free music discovery, progressive analysis, set planning, and live audio execution:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        AUTOPILOT ENGINE & STATE MACHINE                │
+│                                                                        │
+│  [ State: Idle ➔ Analyzing ➔ Planning ➔ Ready ➔ Playing ➔ Mixing ]     │
+└───────────────▲────────────────────────▲────────────────────────▲──────┘
+                │                        │                        │
+       [ Library Discovery ]   [ Autopilot Planner ]    [ Transition Engine ]
+       - Whole-Library Index   - Energy Arcs            - Sample-Accurate DSP
+       - 3-Tier Analysis       - Harmonic / BPM Rules   - 9 Transition Families
+       - Scope Filters         - Lookahead (5-10 trks)  - Dynamic Masking Dip
+                │                        │                        │
+                ▼                        ▼                        ▼
+       [ Library Metrics ]      [ Upcoming Set Queue ]   [ Audit Store & Learn ]
+       - Indexed & Stem Stats   - Track Lock Pins        - Quality Metrics
+       - Real-time Coverage %   - User Reordering        - Local User Feedback
+```
+
+### 7.2 Safety & Fallback Principles
+- **Progressive Playback Start**: Level 1 analysis allows tracks to play in $< 250\text{ ms}$; Level 2 & Level 3 run in non-blocking background workers.
+- **Dynamic Transition Degrade**: If stem separation or deep VAD is unavailable when a transition starts, the engine automatically falls back to phrase-aligned beatmixing or frequency-aware crossfading with zero audio glitches.
+- **Glitch-Free Manual Takeover**: Switching between Autopilot and DJ Studio smoothly hands over deck parameters without stopping active audio streams.
+
