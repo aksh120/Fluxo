@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "package": "npm run build && electron-builder",
-    "package:dir": "npm run build && electron-builder --dir",
-    "package:portable": "npm run build && electron-builder --win portable",
-    "package:nsis": "npm run build && electron-builder --win nsis",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "package": "npm run build && npx electron-rebuild -f -w better-sqlite3 && electron-builder",
+    "package:dir": "npm run build && npx electron-rebuild -f -w better-sqlite3 && electron-builder --dir",
+    "package:portable": "npm run build && npx electron-rebuild -f -w better-sqlite3 && electron-builder --win portable",
+    "package:nsis": "npm run build && npx electron-rebuild -f -w better-sqlite3 && electron-builder --win nsis",
     "test": "vitest run",
     "test:watch": "vitest"
   },
