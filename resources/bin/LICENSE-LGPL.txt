@@ -1,0 +1,15 @@
+GNU LESSER GENERAL PUBLIC LICENSE
+Version 2.1, February 1999
+
+Copyright (C) 1991, 1999 Free Software Foundation, Inc.
+51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+Everyone is permitted to copy and distribute verbatim copies
+of this license document, but changing it is not allowed.
+
+This application bundles a precompiled binary of FFmpeg licensed under the
+GNU Lesser General Public License (LGPL) v2.1. Fluxo invokes FFmpeg as an
+independent standalone subprocess via standard input/output pipes.
+
+FFmpeg source code and build instructions can be obtained from:
+https://ffmpeg.org
