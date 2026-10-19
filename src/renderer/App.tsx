@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { AppHeader } from './components/AppHeader';
-import { Sidebar, AppView } from './components/Sidebar';
+import { Sidebar, AppView, ENABLE_MIX_CREATOR } from './components/Sidebar';
 import { NowPlayingBar } from './components/NowPlayingBar';
 import { LibraryView } from './views/LibraryView';
 import { PartyModeView } from './views/PartyModeView';
@@ -30,6 +30,13 @@ export default function App() {
   } | null>(null);
 
   const [activeView, setActiveView] = useState<AppView>('library');
+
+  // Guard against navigating to hidden Mix Creator view
+  useEffect(() => {
+    if (!ENABLE_MIX_CREATOR && activeView === 'creator') {
+      setActiveView('library');
+    }
+  }, [activeView]);
   const [tracks, setTracks] = useState<TrackMetadata[]>([]);
   const [activeDeckId, setActiveDeckId] = useState<'A' | 'B'>('A');
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -724,7 +731,7 @@ export default function App() {
                 isTransitionActive={isTransitioning}
               />
             )}
-            {activeView === 'creator' && <MixCreatorView libraryTracks={tracks} />}
+            {ENABLE_MIX_CREATOR && activeView === 'creator' && <MixCreatorView libraryTracks={tracks} />}
             {activeView === 'youtube' && (
               <YouTubeView
                 onLoadToDeck={(deckId, track) => handleLoadDeck(deckId, track)}

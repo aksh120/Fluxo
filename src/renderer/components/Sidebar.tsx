@@ -33,6 +33,8 @@ interface NavSection {
   items: NavItem[];
 }
 
+export const ENABLE_MIX_CREATOR = false;
+
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -85,12 +87,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           icon: <Sparkles size={18} color="var(--accent-cyan)" />,
           subtitle: 'Simple 1-click mix'
         },
-        {
-          id: 'creator',
-          label: 'Mix Creator',
-          icon: <Sliders size={18} />,
-          subtitle: 'Timeline mashups'
-        }
+        ...(ENABLE_MIX_CREATOR
+          ? [
+              {
+                id: 'creator' as AppView,
+                label: 'Mix Creator',
+                icon: <Sliders size={18} />,
+                subtitle: 'Timeline mashups'
+              }
+            ]
+          : [])
       ]
     },
     {

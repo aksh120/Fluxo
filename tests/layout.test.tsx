@@ -205,10 +205,8 @@ describe('Phase 2 Desktop Layout & Navigation Tests', () => {
     expect(screen.getByText(/MIX VIBE:/i)).toBeDefined();
     expect(screen.getByText(/NOW PLAYING/i)).toBeDefined();
 
-    // Switch to Mix Creator
-    const creatorNav = screen.getByRole('button', { name: /mix creator/i });
-    fireEvent.click(creatorNav);
-    expect(screen.getByText(/Mix Creator & Timeline Studio/i)).toBeDefined();
+    // Mix Creator & Offline Audio Export system is hidden for now
+    expect(screen.queryByRole('button', { name: /mix creator/i })).toBeNull();
 
     // Switch to YouTube Extractor
     const ytNav = screen.getByRole('button', { name: /youtube/i });
