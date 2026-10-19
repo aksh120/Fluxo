@@ -77,7 +77,19 @@ const fluxoAPI: FluxoAPI = {
     const handler = (_event: any, track: any) => callback(track);
     ipcRenderer.on('library:track-added', handler);
     return () => ipcRenderer.removeListener('library:track-added', handler);
-  }
+  },
+
+  // Playlist & Album Batch Download & YouTube Login
+  fetchPlaylistInfo: (urlOrId) => ipcRenderer.invoke('youtube:fetch-playlist', urlOrId),
+  downloadPlaylist: (urlOrId, options) => ipcRenderer.invoke('youtube:download-playlist', urlOrId, options),
+  cancelPlaylistDownload: (playlistId) => ipcRenderer.invoke('youtube:cancel-playlist-download', playlistId),
+  onPlaylistDownloadProgress: (callback) => {
+    const handler = (_event: any, progress: any) => callback(progress);
+    ipcRenderer.on('youtube:playlist-progress', handler);
+    return () => ipcRenderer.removeListener('youtube:playlist-progress', handler);
+  },
+  getYouTubeLoginStatus: () => ipcRenderer.invoke('youtube:get-login-status'),
+  logoutYouTube: () => ipcRenderer.invoke('youtube:logout')
 };
 
 // Expose safe API to the renderer process

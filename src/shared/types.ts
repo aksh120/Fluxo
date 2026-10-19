@@ -211,6 +211,49 @@ export interface FluxoAPI {
   getYouTubeCacheStats: () => Promise<{ totalBytes: number; trackCount: number; formattedSize: string }>;
   clearYouTubeCache: () => Promise<{ freedBytes: number; deletedCount: number }>;
   onTrackAdded?: (callback: (track: TrackMetadata) => void) => () => void;
+
+  // Playlist & Album Batch Download & YouTube Login (Phase 12 Extension)
+  fetchPlaylistInfo: (urlOrId: string) => Promise<PlaylistMetadata | null>;
+  downloadPlaylist: (
+    urlOrId: string,
+    options?: { albumName?: string; artistName?: string }
+  ) => Promise<{ success: boolean; tracksCount: number; tracks: TrackMetadata[]; error?: string }>;
+  cancelPlaylistDownload: (playlistId: string) => Promise<void>;
+  onPlaylistDownloadProgress?: (callback: (progress: PlaylistDownloadProgress) => void) => () => void;
+  getYouTubeLoginStatus: () => Promise<{ isLoggedIn: boolean; email?: string }>;
+  logoutYouTube: () => Promise<{ success: boolean }>;
+}
+
+export interface PlaylistMetadata {
+  id: string;
+  title: string;
+  author?: string;
+  trackCount: number;
+  thumbnailUrl?: string;
+  url: string;
+  tracks: Array<{
+    id: string;
+    sourceType: 'youtube';
+    title: string;
+    artist: string;
+    duration: number;
+    thumbnailUrl?: string;
+    url?: string;
+  }>;
+}
+
+export interface PlaylistDownloadProgress {
+  playlistId: string;
+  playlistTitle: string;
+  currentTrackIndex: number;
+  totalTracks: number;
+  currentTrackTitle: string;
+  currentTrackProgress: number; // 0.0 - 1.0
+  overallProgress: number; // 0.0 - 1.0
+  statusMessage: string;
+  isComplete: boolean;
+  isCancelled: boolean;
+  failedTracks: string[];
 }
 
 // Phase 11: Multi-Track Timeline & Project Types

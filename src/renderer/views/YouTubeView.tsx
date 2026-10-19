@@ -14,11 +14,16 @@ import {
   ArrowRight,
   RotateCcw,
   ExternalLink,
-  Compass
+  Compass,
+  Disc,
+  ListMusic,
+  User,
+  LogOut,
+  X
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { KeyBadge, BpmBadge, SourceBadge } from '../components/Badge';
-import type { TrackMetadata } from '../../shared/types';
+import type { TrackMetadata, PlaylistMetadata, PlaylistDownloadProgress } from '../../shared/types';
 import type { SearchResultItem } from '../../shared/sources/IMusicSourceProvider';
 import { formatTime } from '../utils/formatters';
 
@@ -48,6 +53,19 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
   });
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  // Persistent Login states
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingLogin, setIsCheckingLogin] = useState(false);
+
+  // Playlist & Album states
+  const [detectedPlaylistId, setDetectedPlaylistId] = useState<string | null>(null);
+  const [detectedPlaylist, setDetectedPlaylist] = useState<PlaylistMetadata | null>(null);
+  const [isFetchingPlaylist, setIsFetchingPlaylist] = useState(false);
+  const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(false);
+
+  // Active playlist batch download state
+  const [activeDownload, setActiveDownload] = useState<PlaylistDownloadProgress | null>(null);
+
   // Embedded Webview states
   const [browserUrl, setBrowserUrl] = useState('https://www.youtube.com');
   const [browserInputUrl, setBrowserInputUrl] = useState('https://www.youtube.com');
@@ -60,9 +78,10 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
     setTimeout(() => setStatusMessage(null), 4000);
   };
 
-  // Load cache statistics and pre-populate all cached tracks on mount
+  // Load cache statistics, login status, and pre-populate all cached tracks on mount
   useEffect(() => {
     refreshCacheStats();
+    checkLoginStatus();
     if (typeof window !== 'undefined' && (window as any).fluxoAPI?.getYoutubeCachedTracks) {
       (window as any).fluxoAPI
         .getYoutubeCachedTracks()
@@ -82,6 +101,38 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
         .catch(console.error);
     }
   }, []);
+
+  // Listen to batch playlist download progress
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.fluxoAPI?.onPlaylistDownloadProgress) {
+      const unsub = window.fluxoAPI.onPlaylistDownloadProgress((progress) => {
+        setActiveDownload(progress);
+        if (progress.isComplete) {
+          showStatus(`✓ ${progress.statusMessage}`);
+          refreshCacheStats();
+          setTimeout(() => setActiveDownload(null), 6000);
+        } else if (progress.isCancelled) {
+          showStatus(`Download cancelled.`);
+          setTimeout(() => setActiveDownload(null), 3000);
+        }
+      });
+      return unsub;
+    }
+  }, []);
+
+  const checkLoginStatus = async () => {
+    if (typeof window !== 'undefined' && window.fluxoAPI?.getYouTubeLoginStatus) {
+      try {
+        setIsCheckingLogin(true);
+        const status = await window.fluxoAPI.getYouTubeLoginStatus();
+        setIsLoggedIn(!!status.isLoggedIn);
+      } catch (err) {
+        console.warn('Failed to check YouTube login status:', err);
+      } finally {
+        setIsCheckingLogin(false);
+      }
+    }
+  };
 
   const refreshCacheStats = async () => {
     if (window.fluxoAPI) {
@@ -103,6 +154,9 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
 
     const checkUrl = (url: string) => {
       setBrowserInputUrl(url);
+      checkLoginStatus();
+
+      // Check single video
       const match = url.match(/(?:v=|\/embed\/|youtu\.be\/|\/v\/|^)([a-zA-Z0-9_-]{11})/);
       if (match && match[1]) {
         setDetectedVideoId(match[1]);
@@ -117,6 +171,32 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
       } else {
         setDetectedVideoId(null);
         setDetectedVideoTitle(null);
+      }
+
+      // Check playlist or album
+      const listMatch = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+      if (listMatch && listMatch[1]) {
+        const pId = listMatch[1];
+        if (pId !== detectedPlaylistId) {
+          setDetectedPlaylistId(pId);
+          setIsFetchingPlaylist(true);
+          if (window.fluxoAPI?.fetchPlaylistInfo) {
+            window.fluxoAPI
+              .fetchPlaylistInfo(url)
+              .then((info) => {
+                setDetectedPlaylist(info);
+              })
+              .catch((e) => {
+                console.warn('Failed to fetch playlist info:', e);
+              })
+              .finally(() => {
+                setIsFetchingPlaylist(false);
+              });
+          }
+        }
+      } else {
+        setDetectedPlaylistId(null);
+        setDetectedPlaylist(null);
       }
     };
 
@@ -135,11 +215,38 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
         wv.removeEventListener('did-navigate-in-page', handleNav);
       } catch {}
     };
-  }, [activeTab]);
+  }, [activeTab, detectedPlaylistId]);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
     setIsSearching(true);
+
+    // If query is a playlist/album URL or ID, automatically fetch playlist metadata
+    const listMatch = query.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+    const isPlaylistQuery =
+      listMatch ||
+      query.startsWith('PL') ||
+      query.startsWith('OLAK') ||
+      query.includes('/playlist') ||
+      query.includes('/browse/VL');
+
+    if (isPlaylistQuery && window.fluxoAPI?.fetchPlaylistInfo) {
+      setStatusMessage(`Inspecting YouTube Playlist / Album...`);
+      try {
+        const info = await window.fluxoAPI.fetchPlaylistInfo(query.trim());
+        if (info) {
+          setDetectedPlaylist(info);
+          setDetectedPlaylistId(info.id);
+          setShowPlaylistDrawer(true);
+          showStatus(`Found "${info.title}" with ${info.trackCount} tracks!`);
+          setIsSearching(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('Playlist lookup failed:', e);
+      }
+    }
+
     setStatusMessage(`Searching YouTube via bundled yt-dlp...`);
 
     try {
@@ -300,6 +407,58 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
     }
   };
 
+  const handleQuickNavigate = (url: string) => {
+    setBrowserUrl(url);
+    setBrowserInputUrl(url);
+    if (webviewRef.current) {
+      try {
+        webviewRef.current.loadURL(url);
+      } catch {
+        webviewRef.current.src = url;
+      }
+    }
+  };
+
+  const handleDownloadPlaylist = async (urlOrId?: string) => {
+    const target = urlOrId || detectedPlaylist?.url || detectedPlaylistId;
+    if (!target) return;
+    if (!window.fluxoAPI?.downloadPlaylist) {
+      showStatus('Playlist batch downloader is active in Fluxo desktop app.');
+      return;
+    }
+
+    showStatus(`Starting whole playlist/album download for "${detectedPlaylist?.title || 'Playlist'}"...`);
+    try {
+      const res = await window.fluxoAPI.downloadPlaylist(target);
+      if (res.success) {
+        showStatus(`✓ Successfully downloaded ${res.tracksCount} tracks into your Library!`);
+        refreshCacheStats();
+      } else if (res.error) {
+        showStatus(`Playlist download: ${res.error}`);
+      }
+    } catch (err: any) {
+      showStatus(`Playlist download failed: ${err.message || String(err)}`);
+    }
+  };
+
+  const handleCancelDownload = async () => {
+    if (activeDownload && window.fluxoAPI?.cancelPlaylistDownload) {
+      await window.fluxoAPI.cancelPlaylistDownload(activeDownload.playlistId);
+      showStatus('Cancelling download...');
+    }
+  };
+
+  const handleLogout = async () => {
+    if (window.fluxoAPI?.logoutYouTube) {
+      await window.fluxoAPI.logoutYouTube();
+      setIsLoggedIn(false);
+      showStatus('Logged out of YouTube session.');
+      if (webviewRef.current?.reload) {
+        webviewRef.current.reload();
+      }
+    }
+  };
+
   return (
     <div
       style={{
@@ -399,6 +558,7 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
                 alignItems: 'center',
                 gap: '6px'
               }}
+              data-testid="tab-browse"
             >
               <Globe size={13} /> Browse YouTube (Web)
             </button>
@@ -474,8 +634,7 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
             </Button>
           </div>
         ) : (
-          /* Embedded Browser Toolbar */
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
             <button
               onClick={() => webviewRef.current?.goBack?.()}
               style={{
@@ -519,6 +678,47 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
               <RotateCcw size={14} />
             </button>
 
+            {/* Quick Destination Pills */}
+            <button
+              onClick={() => handleQuickNavigate('https://www.youtube.com')}
+              style={{
+                background: !browserUrl.includes('music.youtube.com') ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                border: `1px solid ${!browserUrl.includes('music.youtube.com') ? '#EF4444' : 'rgba(255, 255, 255, 0.1)'}`,
+                borderRadius: '6px',
+                color: !browserUrl.includes('music.youtube.com') ? '#FFF' : 'var(--text-secondary)',
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '6px 10px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              title="Browse YouTube"
+            >
+              <Youtube size={12} color="#EF4444" /> YouTube
+            </button>
+            <button
+              onClick={() => handleQuickNavigate('https://music.youtube.com')}
+              style={{
+                background: browserUrl.includes('music.youtube.com') ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                border: `1px solid ${browserUrl.includes('music.youtube.com') ? '#EF4444' : 'rgba(255, 255, 255, 0.1)'}`,
+                borderRadius: '6px',
+                color: browserUrl.includes('music.youtube.com') ? '#FFF' : 'var(--text-secondary)',
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '6px 10px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              title="Browse YouTube Music"
+            >
+              <Disc size={12} color="#EF4444" /> YouTube Music
+            </button>
+
+            {/* Search / URL input */}
             <div
               style={{
                 display: 'flex',
@@ -528,7 +728,8 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
                 border: '1px solid var(--border-glass-hover)',
                 borderRadius: '8px',
                 padding: '6px 12px',
-                flex: 1
+                flex: 1,
+                minWidth: '200px'
               }}
             >
               <Globe size={14} color="var(--text-muted)" />
@@ -553,9 +754,134 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
             <Button variant="secondary" size="sm" onClick={handleNavigateBrowser}>
               Go
             </Button>
+
+            {/* Persistent Login Indicator & Control */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {isLoggedIn ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    borderRadius: '6px',
+                    padding: '5px 10px',
+                    fontSize: '11px',
+                    color: '#34D399',
+                    fontWeight: 600
+                  }}
+                  title="Signed In: Cookies and session persist across application restarts."
+                >
+                  <CheckCircle2 size={12} color="#10B981" />
+                  <span>Signed In</span>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      padding: '0 2px',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    title="Log Out of YouTube"
+                  >
+                    <LogOut size={11} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() =>
+                    handleQuickNavigate(
+                      'https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com'
+                    )
+                  }
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.15)',
+                    border: '1px solid rgba(59, 130, 246, 0.4)',
+                    borderRadius: '6px',
+                    padding: '5px 12px',
+                    fontSize: '11px',
+                    color: '#93C5FD',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}
+                  title="Sign in to your Google / YouTube account. Your session is remembered permanently across app restarts."
+                >
+                  <User size={12} /> Sign In
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Active Batch Download Progress Notification */}
+      {activeDownload && (
+        <div
+          style={{
+            padding: '12px 18px',
+            background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.95), rgba(15, 23, 42, 0.95))',
+            border: '1px solid #6366F1',
+            borderRadius: '10px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Disc size={18} color="var(--accent-cyan)" className="pulse-beat" />
+              <div>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#FFF' }}>
+                  Downloading: {activeDownload.playlistTitle}
+                </span>
+                <span style={{ fontSize: '11px', color: '#A5B4FC', marginLeft: '8px' }}>
+                  (Track {activeDownload.currentTrackIndex} of {activeDownload.totalTracks})
+                </span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+                {Math.round(activeDownload.overallProgress * 100)}%
+              </span>
+              {!activeDownload.isComplete && !activeDownload.isCancelled && (
+                <Button variant="secondary" size="sm" onClick={handleCancelDownload}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div
+            style={{
+              height: '6px',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '3px',
+              overflow: 'hidden'
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: `${Math.round(activeDownload.overallProgress * 100)}%`,
+                background: 'linear-gradient(90deg, #6366F1, var(--accent-cyan))',
+                transition: 'width 0.3s ease'
+              }}
+            />
+          </div>
+
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+            {activeDownload.statusMessage}
+          </div>
+        </div>
+      )}
 
       {/* Embedded YouTube Browser View */}
       {activeTab === 'browse' ? (
@@ -571,7 +897,125 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
             position: 'relative'
           }}
         >
-          {/* Floating Action Banner if video is detected */}
+          {/* Floating Action Banner if playlist/album is detected */}
+          {detectedPlaylist && (
+            <div
+              style={{
+                backgroundColor: '#1E1B4B',
+                borderBottom: '1px solid #8B5CF6',
+                padding: '12px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                zIndex: 11
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(139, 92, 246, 0.4)'
+                  }}
+                >
+                  <Disc size={20} color="#A78BFA" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#FFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{detectedPlaylist.title}</span>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        backgroundColor: '#4338CA',
+                        color: '#C7D2FE',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase'
+                      }}
+                    >
+                      {detectedPlaylist.trackCount} Tracks
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#C7D2FE' }}>
+                    Curated by {detectedPlaylist.author || 'YouTube'} • Ready for library import
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => handleDownloadPlaylist()}
+                  disabled={activeDownload !== null && !activeDownload.isComplete}
+                  leftIcon={<Download size={13} />}
+                >
+                  {activeDownload !== null && !activeDownload.isComplete ? 'Downloading...' : 'Download Whole Album / Playlist'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowPlaylistDrawer(!showPlaylistDrawer)}
+                  leftIcon={<ListMusic size={13} />}
+                >
+                  {showPlaylistDrawer ? 'Hide Tracks' : 'View Tracks'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Drawer for playlist tracks in browser mode */}
+          {showPlaylistDrawer && detectedPlaylist && detectedPlaylist.tracks.length > 0 && (
+            <div
+              style={{
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                borderBottom: '1px solid var(--border-glass)',
+                padding: '12px 18px',
+                maxHeight: '220px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                zIndex: 10
+              }}
+            >
+              {detectedPlaylist.tracks.map((t, idx) => (
+                <div
+                  key={t.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.03)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', width: '20px' }}>{idx + 1}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#FFF' }}>{t.title}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>• {t.artist}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleExtractAudio(t as any)}
+                    leftIcon={<Download size={12} />}
+                  >
+                    Extract
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Floating Action Banner if single video is detected */}
           {detectedVideoId && (
             <div
               style={{
@@ -581,7 +1025,7 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                zIndex: 10
+                zIndex: 9
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -626,12 +1070,14 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
             </div>
           )}
 
-          {/* Electron webview tag */}
+          {/* Electron webview tag with persistent partition and modern Chrome user agent */}
           {typeof window !== 'undefined' && (window as any).fluxoAPI ? (
             // @ts-ignore
             <webview
               ref={webviewRef}
               src={browserUrl}
+              partition="persist:youtube_session"
+              useragent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
               style={{
                 flex: 1,
                 width: '100%',
@@ -640,7 +1086,7 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
                 border: 'none',
                 backgroundColor: '#000'
               }}
-              allowpopups={true}
+              allowpopups="true"
             />
           ) : (
             <iframe
@@ -684,6 +1130,132 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
               Real-time high bitrate audio extraction via bundled yt-dlp + FFmpeg
             </span>
           </div>
+
+          {/* Detected Album / Playlist Card in Search Mode */}
+          {detectedPlaylist && (
+            <div
+              style={{
+                marginBottom: '16px',
+                padding: '16px',
+                borderRadius: '10px',
+                border: '1px solid #8B5CF6',
+                background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.7), rgba(15, 23, 42, 0.8))',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div
+                    style={{
+                      width: '46px',
+                      height: '46px',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)'
+                    }}
+                  >
+                    <Disc size={24} color="#FFF" />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFF' }}>
+                        {detectedPlaylist.title}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          backgroundColor: '#4338CA',
+                          color: '#EEF2FF',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontWeight: 700
+                        }}
+                      >
+                        {detectedPlaylist.trackCount} Tracks
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#A5B4FC' }}>
+                      Album / Playlist by {detectedPlaylist.author || 'YouTube'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Button
+                    variant="primary"
+                    onClick={() => handleDownloadPlaylist()}
+                    disabled={activeDownload !== null && !activeDownload.isComplete}
+                    leftIcon={<Download size={14} />}
+                  >
+                    {activeDownload !== null && !activeDownload.isComplete ? 'Downloading Album...' : 'Download Whole Album / Playlist'}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowPlaylistDrawer(!showPlaylistDrawer)}
+                    leftIcon={<ListMusic size={14} />}
+                  >
+                    {showPlaylistDrawer ? 'Hide Tracks' : 'Inspect Tracks'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Expandable track list */}
+              {showPlaylistDrawer && detectedPlaylist.tracks.length > 0 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    maxHeight: '260px',
+                    overflowY: 'auto',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                    paddingTop: '10px'
+                  }}
+                >
+                  {detectedPlaylist.tracks.map((t, idx) => (
+                    <div
+                      key={t.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', width: '22px' }}>
+                          {idx + 1}
+                        </span>
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: '#FFF' }}>
+                            {t.title}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            {t.artist} • {formatTime(t.duration)}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleExtractAudio(t as any)}
+                        leftIcon={<Download size={12} />}
+                      >
+                        Extract
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
             {(searchResults.length > 0 ? searchResults : [

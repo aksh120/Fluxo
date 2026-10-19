@@ -385,9 +385,165 @@ describe('Phase 12: YouTube Audio Extraction Engine & Full Source Integration Te
       fireEvent.click(queueBtns[0]);
 
       await waitFor(() => {
-        expect(handleAddToQueue).toHaveBeenCalledWith(expect.objectContaining({
-          sourceType: 'youtube'
-        }));
+        expect(handleAddToQueue).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sourceType: 'youtube'
+          })
+        );
+      });
+    });
+
+    // ==========================================
+    // P12-T006: Whole Playlist & Album Batch Downloader & Persistent YouTube Login
+    // ==========================================
+    describe('P12-T006: Whole Playlist & Album Batch Downloader & Persistent YouTube Session', () => {
+      it('fetches playlist and album metadata with structured track entries', async () => {
+        const provider = new YouTubeAudioExtractorProvider({ cacheDir: testCacheDir });
+        const playlistInfo = await provider.fetchPlaylistInfo('https://www.youtube.com/playlist?list=PL1234567890');
+
+        expect(playlistInfo).toBeDefined();
+        expect(playlistInfo?.title).toBeDefined();
+        expect(playlistInfo?.trackCount).toBeGreaterThan(0);
+        expect(playlistInfo?.tracks.length).toBeGreaterThan(0);
+        expect(playlistInfo?.tracks[0].sourceType).toBe('youtube');
+      });
+
+      it('downloads entire playlist batch and tracks progress through completion', async () => {
+        const provider = new YouTubeAudioExtractorProvider({ cacheDir: testCacheDir });
+        vi.spyOn(provider, 'extractAudio').mockImplementation(async (id: string, onProg?: any) => {
+          onProg?.({
+            videoId: id,
+            phase: 'complete',
+            progress: 1.0,
+            percentage: 100,
+            statusMessage: 'Done'
+          });
+          const dummyPath = path.join(testCacheDir, `${id}.mp3`);
+          fs.writeFileSync(dummyPath, 'audio dummy');
+          return {
+            id: `yt-${id}`,
+            filePath: dummyPath,
+            fileSize: 1000,
+            mtime: Date.now(),
+            title: `Track ${id}`,
+            artist: 'Artist',
+            duration: 180,
+            sampleRate: 44100,
+            channels: 2,
+            format: 'mp3',
+            sourceType: 'youtube'
+          };
+        });
+
+        const progressEvents: any[] = [];
+
+        const result = await provider.downloadPlaylist(
+          'https://www.youtube.com/playlist?list=PL1234567890',
+          (prog) => {
+            progressEvents.push(prog);
+          }
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.tracksCount).toBeGreaterThan(0);
+        expect(result.tracks.length).toBeGreaterThan(0);
+        expect(result.tracks[0].album).toBeDefined();
+
+        // Verify progress updates occurred
+        expect(progressEvents.length).toBeGreaterThan(0);
+        const lastProg = progressEvents[progressEvents.length - 1];
+        expect(lastProg.isComplete).toBe(true);
+        expect(lastProg.overallProgress).toBe(1.0);
+      });
+
+      it('supports cancelling playlist download mid-batch', async () => {
+        const provider = new YouTubeAudioExtractorProvider({ cacheDir: testCacheDir });
+        const cancelToken = { cancelled: true };
+        const progressEvents: any[] = [];
+
+        const result = await provider.downloadPlaylist(
+          'https://www.youtube.com/playlist?list=PL1234567890',
+          (prog) => {
+            progressEvents.push(prog);
+          },
+          cancelToken
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('cancelled');
+        expect(progressEvents.some((p) => p.isCancelled)).toBe(true);
+      });
+
+      it('attaches cookies argument when cookies file exists for authenticated extraction', () => {
+        const dummyCookiesPath = path.join(testCacheDir, 'youtube_cookies.txt');
+        fs.writeFileSync(dummyCookiesPath, '# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t1999999999\tLOGIN_INFO\tabc\n');
+
+        const provider = new YouTubeAudioExtractorProvider({
+          cacheDir: testCacheDir,
+          cookiesFilePath: dummyCookiesPath
+        });
+
+        expect(provider.getCookiesFilePath()).toBe(dummyCookiesPath);
+        expect(provider.getCookiesArg()).toContain('--cookies');
+        expect(provider.getCookiesArg()).toContain(dummyCookiesPath);
+
+        provider.setCookiesFilePath(undefined);
+        expect(provider.getCookiesArg()).toBe('');
+      });
+
+      it('renders embedded webview with persist:youtube_session partition and modern Chrome useragent', async () => {
+        (window as any).fluxoAPI = {
+          getYouTubeLoginStatus: vi.fn().mockResolvedValue({ isLoggedIn: false }),
+          getYouTubeCacheStats: vi.fn().mockResolvedValue({ totalBytes: 0, trackCount: 0, formattedSize: '0 KB' }),
+          getYoutubeCachedTracks: vi.fn().mockResolvedValue([])
+        };
+
+        render(<YouTubeView />);
+
+        // Switch to browse tab
+        const browseTabBtn = screen.getByTestId('tab-browse') || screen.getByText(/Browse YouTube \(Web\)/i);
+        fireEvent.click(browseTabBtn);
+
+        await waitFor(() => {
+          expect(screen.getByText(/YouTube Music/i)).toBeDefined();
+          expect(screen.getByText(/Sign In/i)).toBeDefined();
+        });
+      });
+
+      it('renders active download progress bar when playlist download is underway', async () => {
+        let progressCallback: any = null;
+        (window as any).fluxoAPI = {
+          getYouTubeLoginStatus: vi.fn().mockResolvedValue({ isLoggedIn: true }),
+          getYouTubeCacheStats: vi.fn().mockResolvedValue({ totalBytes: 0, trackCount: 0, formattedSize: '0 KB' }),
+          getYoutubeCachedTracks: vi.fn().mockResolvedValue([]),
+          onPlaylistDownloadProgress: vi.fn().mockImplementation((cb) => {
+            progressCallback = cb;
+            return () => {};
+          })
+        };
+
+        render(<YouTubeView />);
+
+        // Simulate progress update
+        progressCallback?.({
+          playlistId: 'pl-test',
+          playlistTitle: 'Greatest Hits Album',
+          currentTrackIndex: 3,
+          totalTracks: 10,
+          currentTrackTitle: 'Track 3',
+          currentTrackProgress: 0.5,
+          overallProgress: 0.3,
+          statusMessage: 'Downloading track 3/10...',
+          isComplete: false,
+          isCancelled: false,
+          failedTracks: []
+        });
+
+        await waitFor(() => {
+          expect(screen.getByText(/Downloading: Greatest Hits Album/i)).toBeDefined();
+          expect(screen.getByText(/30%/i)).toBeDefined();
+          expect(screen.getByRole('button', { name: /Cancel/i })).toBeDefined();
+        });
       });
     });
   });
