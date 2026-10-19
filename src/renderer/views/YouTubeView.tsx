@@ -273,7 +273,7 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
 
         <p style={{ color: 'var(--text-secondary)', fontSize: '12px', maxWidth: '640px', marginBottom: '14px' }}>
           Extract high-bitrate audio from YouTube URLs or search queries via local <code>yt-dlp</code> + FFmpeg.
-          Extracted tracks are cached in <code>%APPDATA%\Fluxo\cache\youtube\</code> with 100% full DSP parity
+          Extracted tracks are cached in <code>%APPDATA%\Fluxo\media_cache\youtube\</code> with 100% full DSP parity
           (harmonic key detection, beatmatching, 3-band EQ, stem separation, and offline mix export).
         </p>
 

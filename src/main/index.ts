@@ -171,7 +171,7 @@ ipcMain.handle(
 );
 
 // Stem Separation Manager (Phase 10)
-const stemsCacheDir = path.join(app.getPath('userData'), 'cache', 'stems');
+const stemsCacheDir = path.join(app.getPath('userData'), 'media_cache', 'stems');
 const stemManager = new StemSeparationManager({ cacheDir: stemsCacheDir });
 
 // Play History & Feedback Operations
@@ -316,7 +316,7 @@ ipcMain.handle('shell:show-item-in-folder', async (_event, fullPath: string) => 
 });
 
 // YouTube Audio Extraction & Streaming (Phase 12)
-const youtubeCacheDir = path.join(app.getPath('userData'), 'cache', 'youtube');
+const youtubeCacheDir = path.join(app.getPath('userData'), 'media_cache', 'youtube');
 const youtubeProvider = new YouTubeAudioExtractorProvider({
   cacheDir: youtubeCacheDir,
   database

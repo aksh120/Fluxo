@@ -101,6 +101,10 @@ export class YouTubeAudioExtractorProvider implements IMusicSourceProvider {
     this.ffmpegPath = config.ffmpegPath || FFmpegEncoder.getFfmpegPath();
     this.ytdlpPath = config.ytdlpPath || this.detectYtDlp();
 
+    this.ensureCacheDir();
+  }
+
+  public ensureCacheDir(): void {
     if (!fs.existsSync(this.cacheDir)) {
       fs.mkdirSync(this.cacheDir, { recursive: true });
     }
@@ -221,6 +225,7 @@ export class YouTubeAudioExtractorProvider implements IMusicSourceProvider {
     identifier: string,
     onProgress?: (progress: ExtractionProgress) => void
   ): Promise<TrackMetadata> {
+    this.ensureCacheDir();
     const videoIdMatch = identifier.match(/(?:v=|\/embed\/|youtu\.be\/|\/v\/|^)([a-zA-Z0-9_-]{11})/);
     const videoId = videoIdMatch ? videoIdMatch[1] : identifier.replace(/[^a-zA-Z0-9_-]/g, '_');
     const cachedPath = this.getCachedFilePath(videoId);
@@ -374,6 +379,8 @@ export class YouTubeAudioExtractorProvider implements IMusicSourceProvider {
       }
     }
 
+    this.ensureCacheDir();
+
     return { freedBytes, deletedCount };
   }
 
@@ -448,6 +455,11 @@ export class YouTubeAudioExtractorProvider implements IMusicSourceProvider {
       buffer.writeInt16LE(intSample, offset);
       buffer.writeInt16LE(intSample, offset + 2);
       offset += 4;
+    }
+
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
 
     fs.writeFileSync(filePath, buffer);

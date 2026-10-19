@@ -190,6 +190,25 @@ describe('Phase 12: YouTube Audio Extraction Engine & Full Source Integration Te
       const postClearStats = await provider.getCacheStats();
       expect(postClearStats.trackCount).toBe(0);
     });
+
+    it('gracefully creates non-existent or deleted cache directories without throwing ENOENT during extraction', async () => {
+      const nonExistentDir = path.join(testCacheDir, 'nested', 'deep', 'cache');
+      if (fs.existsSync(nonExistentDir)) {
+        fs.rmSync(nonExistentDir, { recursive: true, force: true });
+      }
+
+      const provider = new YouTubeAudioExtractorProvider({ cacheDir: nonExistentDir });
+      // Delete directory after instantiation to simulate external or Chromium deletion
+      if (fs.existsSync(nonExistentDir)) {
+        fs.rmSync(nonExistentDir, { recursive: true, force: true });
+      }
+      expect(fs.existsSync(nonExistentDir)).toBe(false);
+
+      const trackMeta = await provider.extractAudio('dQw4w9WgXcQ');
+      expect(trackMeta).toBeDefined();
+      expect(fs.existsSync(trackMeta.filePath)).toBe(true);
+      expect(fs.existsSync(nonExistentDir)).toBe(true);
+    });
   });
 
   // ==========================================

@@ -413,7 +413,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ platformInfo }) => {
         </div>
 
         <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '14px' }}>
-          Audio peaks, stem separation WAVs, and extracted YouTube tracks are stored in local user app data (<code>%APPDATA%\Fluxo\cache\</code>).
+          Audio peaks, stem separation WAVs, and extracted YouTube tracks are stored in local user app data (<code>%APPDATA%\Fluxo\media_cache\</code>).
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>

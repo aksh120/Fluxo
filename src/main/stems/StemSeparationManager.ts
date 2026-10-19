@@ -30,6 +30,10 @@ export class StemSeparationManager {
     this.cacheDir = options.cacheDir || path.join(process.cwd(), '.cache', 'stems');
     this.pythonPath = options.pythonPath || 'python';
 
+    this.ensureCacheDir();
+  }
+
+  public ensureCacheDir(): void {
     if (!fs.existsSync(this.cacheDir)) {
       fs.mkdirSync(this.cacheDir, { recursive: true });
     }
@@ -69,6 +73,7 @@ export class StemSeparationManager {
     sampleRate = 44100,
     duration = 180
   ): Promise<StemResult> {
+    this.ensureCacheDir();
     const cached = this.getCachedStems(trackId);
     if (cached) {
       return cached;
@@ -192,6 +197,7 @@ export class StemSeparationManager {
     const vocalsBuffer = Buffer.concat([wavVocals, Buffer.from(vocalPcm.buffer)]);
     const instBuffer = Buffer.concat([wavInstrumental, Buffer.from(instPcm.buffer)]);
 
+    this.ensureCacheDir();
     await fs.promises.writeFile(vocalsPath, vocalsBuffer);
     await fs.promises.writeFile(instrumentalPath, instBuffer);
   }
