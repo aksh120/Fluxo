@@ -30,6 +30,7 @@ export class AudioEngine {
   public readonly transitionCoordinator: DynamicTransitionCoordinator;
 
   private _crossfaderPos = 0; // -1.0 (Deck A 100%) to +1.0 (Deck B 100%)
+  private trackEndedListeners: Set<(deckId: 'A' | 'B', track: TrackMetadata | null) => void> = new Set();
 
   private constructor() {
     this.contextManager = AudioContextManager.getInstance();
@@ -43,6 +44,27 @@ export class AudioEngine {
     this.progressiveDecoder = new ProgressiveStreamDecoder(context);
     this.timeStretcher = new TimeStretcher();
     this.beatSync = new BeatSyncController();
+
+    // Forward natural track-ended events from virtual decks
+    this.deckA.onTrackEnded((deckId, track) => {
+      for (const listener of this.trackEndedListeners) {
+        try {
+          listener(deckId, track);
+        } catch (err) {
+          console.error('[AudioEngine] deckA trackEnded listener error:', err);
+        }
+      }
+    });
+
+    this.deckB.onTrackEnded((deckId, track) => {
+      for (const listener of this.trackEndedListeners) {
+        try {
+          listener(deckId, track);
+        } catch (err) {
+          console.error('[AudioEngine] deckB trackEnded listener error:', err);
+        }
+      }
+    });
 
     this.transitionEngine = new TransitionEngine(
       (pos) => this.setCrossfader(pos),
@@ -63,6 +85,20 @@ export class AudioEngine {
     );
 
     this.setCrossfader(0);
+
+    // Global reference for diagnostics and inspection
+    if (typeof window !== 'undefined') {
+      (window as any).__fluxoAudioEngine = this;
+    }
+  }
+
+  public onTrackEnded(listener: (deckId: 'A' | 'B', track: TrackMetadata | null) => void): () => void {
+    this.trackEndedListeners.add(listener);
+    return () => this.trackEndedListeners.delete(listener);
+  }
+
+  public getActiveDeck(activeDeckId: 'A' | 'B'): DeckEngine {
+    return this.getDeck(activeDeckId);
   }
 
   public static getInstance(): AudioEngine {

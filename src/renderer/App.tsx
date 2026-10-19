@@ -11,6 +11,7 @@ import { MixCreatorView } from './views/MixCreatorView';
 import { YouTubeView } from './views/YouTubeView';
 import { SettingsView } from './views/SettingsView';
 import { AudioEngine } from './audio/AudioEngine';
+import { AutopilotEngine } from './audio/AutopilotEngine';
 import { QueueManager, QueueItem } from './state/QueueManager';
 import { EnergyFlowOrchestrator, EnergyProfileType } from '../shared/dj/EnergyFlowOrchestrator';
 import { PreferenceLearner } from '../shared/dj/PreferenceLearner';
@@ -149,6 +150,23 @@ export default function App() {
         }
       });
     }
+
+    // Subscribe to AutopilotEngine track & deck transitions
+    try {
+      const autopilot = AutopilotEngine.getInstance();
+      const unsubTrack = autopilot.onTrackChange((track, deckId) => {
+        if (track) {
+          setCurrentTrack(track);
+          setActiveDeckId(deckId);
+          syncDeckStates();
+        }
+      });
+      return () => {
+        unsubTrack();
+      };
+    } catch (err) {
+      console.warn('Autopilot track listener subscription error:', err);
+    }
   }, []);
 
   const syncDeckStates = () => {
@@ -167,6 +185,23 @@ export default function App() {
       if (engine && (engine.deckA.isPlaying || engine.deckB.isPlaying || isTransitioning)) {
         setDeckAState(engine.deckA.getState());
         setDeckBState(engine.deckB.getState());
+
+        // Keep active deck and track synchronized if Autopilot is playing
+        try {
+          const autopilot = AutopilotEngine.getInstance();
+          if (autopilot.getState() === 'playing' || autopilot.getState() === 'transitioning') {
+            const autoDeck = autopilot.getActiveDeckId();
+            if (autoDeck !== activeDeckId) {
+              setActiveDeckId(autoDeck);
+            }
+            const autoTrack = autopilot.getCurrentTrack();
+            if (autoTrack && autoTrack.id !== currentTrack?.id) {
+              setCurrentTrack(autoTrack);
+            }
+          }
+        } catch {
+          // Non-blocking
+        }
 
         // Anticipatory next-track preloading into standby memory (30s before track finish)
         const activeDeck = activeDeckId === 'A' ? engine.deckA : engine.deckB;
@@ -527,6 +562,9 @@ export default function App() {
               <AutopilotView
                 libraryTracks={tracks}
                 isScanning={isScanning}
+                deckAState={deckAState}
+                deckBState={deckBState}
+                activeDeckId={activeDeckId}
                 onTakeoverToStudio={(targetDeck, track) => {
                   setActiveView('studio');
                   if (track) {

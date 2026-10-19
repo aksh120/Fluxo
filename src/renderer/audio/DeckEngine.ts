@@ -37,6 +37,7 @@ export class DeckEngine {
   private _preMuteVolume = 0.8;
   private _startContextTime = 0;
   private _pausedAtPosition = 0;
+  private trackEndedListeners: Set<(deckId: 'A' | 'B', track: TrackMetadata | null) => void> = new Set();
 
   constructor(deckId: 'A' | 'B', context: AudioContext, outputNode: AudioNode) {
     this.deckId = deckId;
@@ -146,10 +147,19 @@ export class DeckEngine {
     this.sourceNode.connect(this.lowFilter);
 
     this.sourceNode.onended = () => {
-      // Natural track finish
-      if (this._isPlaying && this.currentTime >= this.duration - 0.1) {
+      // Natural track finish detection: verify player was active and position reached EOF
+      const isNaturalEnd = this._isPlaying && (this.duration > 0 && this.currentTime >= this.duration - 0.25);
+      if (isNaturalEnd) {
         this._isPlaying = false;
         this._pausedAtPosition = 0;
+        console.log(`[AutopilotDiagnostic] DeckEngine ${this.deckId}: Track reached EOF naturally. (duration: ${this.duration.toFixed(2)}s, currentTime: ${this.currentTime.toFixed(2)}s)`);
+        for (const listener of this.trackEndedListeners) {
+          try {
+            listener(this.deckId, this._currentTrack);
+          } catch (err) {
+            console.error(`[AutopilotDiagnostic] DeckEngine ${this.deckId} trackEnded listener error:`, err);
+          }
+        }
       }
     };
 
@@ -317,6 +327,19 @@ export class DeckEngine {
 
   public get currentTrack(): TrackMetadata | null {
     return this._currentTrack;
+  }
+
+  public onTrackEnded(listener: (deckId: 'A' | 'B', track: TrackMetadata | null) => void): () => void {
+    this.trackEndedListeners.add(listener);
+    return () => this.trackEndedListeners.delete(listener);
+  }
+
+  public hasBuffer(): boolean {
+    return this.currentBuffer !== null;
+  }
+
+  public getBuffer(): AudioBuffer | null {
+    return this.currentBuffer;
   }
 
   public getState(): DeckState {

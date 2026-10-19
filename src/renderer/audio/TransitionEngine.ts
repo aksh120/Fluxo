@@ -61,6 +61,13 @@ export class TransitionEngine {
   }
 
   /**
+   * Starts an automated DJ transition (alias for startTransition)
+   */
+  public executeTransition(config: TransitionConfig): void {
+    this.startTransition(config);
+  }
+
+  /**
    * Starts an automated DJ transition
    */
   public startTransition(config: TransitionConfig): void {

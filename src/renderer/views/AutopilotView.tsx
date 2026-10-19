@@ -11,7 +11,6 @@ import {
   Pause,
   Square,
   SkipForward,
-  RotateCcw,
   Lock,
   Unlock,
   ArrowUp,
@@ -20,23 +19,16 @@ import {
   RefreshCw,
   Sliders,
   Sparkles,
-  Radio,
-  Layers,
   Volume2,
   ThumbsUp,
   ThumbsDown,
-  FastForward,
-  Mic,
-  Flame,
   ShieldAlert,
-  CheckCircle2,
-  Clock,
   Compass,
-  Music,
-  Cpu
+  Music
 } from 'lucide-react';
-import type { TrackMetadata, TrackAnalysis } from '../../shared/types';
+import type { TrackMetadata, TrackAnalysis, DeckState } from '../../shared/types';
 import { ScrollingWaveformCanvas } from '../components/ScrollingWaveformCanvas';
+import { AudioEngine } from '../audio/AudioEngine';
 import { AutopilotEngine } from '../audio/AutopilotEngine';
 import { AutopilotMetricsService } from '../audio/AutopilotMetricsService';
 import type {
@@ -55,6 +47,9 @@ export interface AutopilotViewProps {
   analyses?: Map<string, TrackAnalysis> | Record<string, TrackAnalysis>;
   isScanning?: boolean;
   onTakeoverToStudio?: (targetDeck: 'A' | 'B', track: TrackMetadata | null) => void;
+  deckAState?: DeckState;
+  deckBState?: DeckState;
+  activeDeckId?: 'A' | 'B';
 }
 
 export const AutopilotView: React.FC<AutopilotViewProps> = ({
@@ -79,6 +74,51 @@ export const AutopilotView: React.FC<AutopilotViewProps> = ({
   const [sessionName] = useState('Main Room Autonomous Session');
   const [showConfigDrawer, setShowConfigDrawer] = useState(false);
 
+  // Authoritative Deck States for ScrollingWaveformCanvas and meters
+  const [deckAState, setDeckAState] = useState<DeckState>(() => {
+    try {
+      return AudioEngine.getInstance().deckA.getState();
+    } catch {
+      return {
+        deckId: 'A',
+        currentTrack: null,
+        isPlaying: false,
+        currentTime: 0,
+        duration: 0,
+        playbackRate: 1.0,
+        volume: 0.8,
+        isMuted: false,
+        lowGain: 1.0,
+        midGain: 1.0,
+        highGain: 1.0,
+        filterFreq: 20000,
+        filterResonance: 1.0
+      };
+    }
+  });
+
+  const [deckBState, setDeckBState] = useState<DeckState>(() => {
+    try {
+      return AudioEngine.getInstance().deckB.getState();
+    } catch {
+      return {
+        deckId: 'B',
+        currentTrack: null,
+        isPlaying: false,
+        currentTime: 0,
+        duration: 0,
+        playbackRate: 1.0,
+        volume: 0.8,
+        isMuted: false,
+        lowGain: 1.0,
+        midGain: 1.0,
+        highGain: 1.0,
+        filterFreq: 20000,
+        filterResonance: 1.0
+      };
+    }
+  });
+
   // Analyses map normalization
   const analysesMap = React.useMemo(() => {
     if (analyses instanceof Map) return analyses;
@@ -99,18 +139,23 @@ export const AutopilotView: React.FC<AutopilotViewProps> = ({
     engine.setLibrary(libraryTracks, analysesMap);
   }, [libraryTracks, analysesMap, engine]);
 
-  // Subscribe to engine state & queue changes
+  // Subscribe to engine state, queue, and track changes
   useEffect(() => {
     const unsubState = engine.onStateChange((s) => setEngineState(s));
     const unsubQueue = engine.onQueueChange((q) => setUpcomingQueue(q));
+    const unsubTrack = engine.onTrackChange((track, deckId) => {
+      setCurrentTrack(track);
+      setActiveDeckId(deckId);
+    });
 
     return () => {
       unsubState();
       unsubQueue();
+      unsubTrack();
     };
   }, [engine]);
 
-  // 60fps tracking loop for live timecode
+  // 60fps tracking loop for authoritative live timecode and waveform synchronization
   useEffect(() => {
     let animId: number;
     const updateLoop = () => {
@@ -119,14 +164,17 @@ export const AutopilotView: React.FC<AutopilotViewProps> = ({
       setCurrentTrack(engine.getCurrentTrack());
 
       try {
-        const audioState =
-          activeDeck === 'A'
-            ? (window as any).__fluxoAudioEngine?.deckA?.getState?.()
-            : (window as any).__fluxoAudioEngine?.deckB?.getState?.();
-        if (audioState) {
-          setCurrentTime(audioState.currentTime || 0);
-          setDuration(audioState.duration || 0);
-          engine.checkAutoTransition(audioState.currentTime || 0, audioState.duration || 0);
+        const audioEngine = AudioEngine.getInstance();
+        const stateA = audioEngine.deckA.getState();
+        const stateB = audioEngine.deckB.getState();
+        setDeckAState(stateA);
+        setDeckBState(stateB);
+
+        const activeDeckEngine = activeDeck === 'A' ? stateA : stateB;
+        if (activeDeckEngine) {
+          setCurrentTime(activeDeckEngine.currentTime || 0);
+          setDuration(activeDeckEngine.duration || 0);
+          engine.checkAutoTransition(activeDeckEngine.currentTime || 0, activeDeckEngine.duration || 0);
         }
       } catch {
         // Fallback for test / headless environments
@@ -678,12 +726,13 @@ export const AutopilotView: React.FC<AutopilotViewProps> = ({
             }}
           >
             <ScrollingWaveformCanvas
-              track={currentTrack}
-              analysis={currentTrack ? analysesMap.get(currentTrack.id) : null}
-              currentTime={currentTime}
-              duration={duration}
-              isPlaying={engineState === 'playing' || engineState === 'transitioning'}
-              color="#00F2FE"
+              deckA={deckAState}
+              deckB={deckBState}
+              waveformA={deckAState.currentTrack ? analysesMap.get(deckAState.currentTrack.id)?.waveformPeaks : null}
+              waveformB={deckBState.currentTrack ? analysesMap.get(deckBState.currentTrack.id)?.waveformPeaks : null}
+              beatGridA={deckAState.currentTrack ? analysesMap.get(deckAState.currentTrack.id)?.beatGrid : null}
+              beatGridB={deckBState.currentTrack ? analysesMap.get(deckBState.currentTrack.id)?.beatGrid : null}
+              height={80}
             />
           </div>
 
