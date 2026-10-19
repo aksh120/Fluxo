@@ -1,0 +1,154 @@
+/**
+ * Fluxo CSS Utility Classes
+ * Glassmorphic cards, buttons, glowing borders, animations, and typography
+ */
+
+/* Glass Cards & Panels */
+.glass-panel {
+  background: var(--glass-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+}
+
+.glass-panel-hover:hover {
+  background: var(--glass-card-hover);
+  border-color: var(--border-glass-hover);
+  transform: translateY(-1px);
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-full);
+  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Typography Helpers */
+.display-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.text-gradient-cyan {
+  background: var(--gradient-cyan);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-magenta {
+  background: var(--gradient-magenta);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-brand {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glowing Highlights */
+.glow-cyan {
+  box-shadow: var(--deck-a-glow);
+}
+
+.glow-magenta {
+  box-shadow: var(--deck-b-glow);
+}
+
+/* Camelot Key Badge Colors */
+.badge-camelot {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.badge-bpm {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+}
+
+/* DJ Isolator EQ Knob & Fader Base */
+.dj-control-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.dj-control-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* Animations */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.96);
+  }
+}
+
+.pulse-beat {
+  animation: pulseGlow 500ms ease-in-out infinite;
+}
+
+@keyframes spinRecord {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-vinyl {
+  animation: spinRecord 1.8s linear infinite;
+}
+
+.spin-vinyl-paused {
+  animation-play-state: paused;
+}
