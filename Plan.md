@@ -728,3 +728,47 @@ A milestone, feature, or task in Fluxo is considered **DONE** only when:
 
 - Comprehensive breakdown of all project development phases: **[Phases.md](file:///c:/Users/User/Documents/GitHub/Fluxo/Phases.md)**
 - Granular, verifiable task checklist: **[Tasks.md](file:///c:/Users/User/Documents/GitHub/Fluxo/Tasks.md)**
+
+---
+
+## 24. Professional AI DJ Engine & Intelligent Live Mixing Studio Specification
+
+### 24.1 Core Vision & Architectural Objectives
+The **DJ Studio** is Fluxo's flagship subsystem, converting ordinary consumer PCs into an intelligent, professional-grade AI DJ workstation. Rather than simulating a physical mixer or performing basic crossfades, Fluxo features a genuine audio DSP engine with musical understanding:
+- **Continuous Rhythm & Phrasing**: Maintains sample-accurate beat alignment, 4/8/16/32-bar phrase awareness, and downbeat locking across transitions.
+- **Vocal-Aware Crossover**: Isolates vocals and accompaniment when stems are available. Layers Song A's vocal over Song B's incoming instrumental, suppresses mid-frequency masking (300Hz–3.5kHz sidechain dip), and executes a phrase-aligned vocal handoff into Song B's vocal with zero clashing vocals.
+- **Section & Energy Intelligence**: Intelligently identifies Intros, Drops, Breakdowns, Build-ups, and Outros, timing transitions to musical climaxes or natural structural handoffs.
+- **Real-Time Safety & Progressive Preparation**: Music begins immediately (< 250ms); deep analysis and neural stem separation run asynchronously in background workers, progressively refining the transition plan without interrupting active playback.
+
+### 24.2 The 9 Transition Families
+Fluxo's Transition Planner evaluates track pairs and selects from 9 distinct transition families based on tempo, key, energy, and stem availability:
+1. **Phrase-Aligned Beatmix**: Synchronizes bars and phrases with smooth equal-power crossfading over 16 or 32 bars.
+2. **Bass Swap**: Instantaneous low-frequency crossover on the downbeat ("the 1"), eliminating muddy kick drum collision.
+3. **Vocal Crossover**: Overlays outgoing vocal onto incoming instrumental, dips instrumental mid-range to prevent masking, and hands off at phrase end.
+4. **Instrumental Handoff**: Transitions between rhythmically compatible instrumental sections (e.g. Outro to Intro) preserving groove continuity.
+5. **Breakdown-to-Build-up**: Merges an outgoing low-density breakdown directly into an incoming high-tension build-up.
+6. **Drop Transition**: Precision high-energy cut or punch aligned to the incoming track's drop downbeat.
+7. **Echo-Out / Filter Sweep**: High-feedback 3/4-beat echo wash or resonant high-pass filter sweep for exit when tempos or keys diverge significantly.
+8. **Intelligent Crossfade Fallback**: High-quality frequency-aware crossfade when deep analysis is pending or complex mixing risks clashing.
+9. **Creative Mashup**: Continuous multi-bar layering of isolated acapella on top of an alternative track's instrumental groove.
+
+### 24.3 Transition Compatibility Scoring
+An inspectable, multi-factor compatibility engine calculates transition feasibility:
+$$\text{Score} = w_{\text{tempo}} C_{\text{tempo}} + w_{\text{key}} C_{\text{key}} + w_{\text{phrase}} C_{\text{phrase}} + w_{\text{energy}} C_{\text{energy}} + w_{\text{vocal}} C_{\text{vocal}}$$
+- **$C_{\text{tempo}}$**: BPM ratio compatibility (including half-time $\times 0.5$ and double-time $\times 2.0$).
+- **$C_{\text{key}}$**: Camelot Wheel distance (exact match $= 1.0$, $\pm 1$ step $= 0.9$, relative major/minor $= 0.85$, energy boost $+1$ or $+2$ semitones $= 0.75$).
+- **$C_{\text{phrase}}$**: Downbeat and 4-bar phrase alignment confidence.
+- **$C_{\text{vocal}}$**: Vocal overlap penalty ($0.0$ if both tracks have active overlapping vocals without stem isolation).
+- **$C_{\text{energy}}$**: Continuity of RMS/LUFS energy profile avoiding jarring volume drops.
+
+### 24.4 DJ Studio User Interface Structure
+- **Top Bar**: Current session name, audio output device picker (WASAPI), master output level meter, background analysis status spinner, CPU/processing indicator, Beginner vs Advanced toggle.
+- **Left Panel (Music Library)**: Real tracks from local library or extracted YouTube cache (zero mock tracks); displays artwork, title, artist, duration, BPM, Key, and Energy badges; instant search, tag filters, and drag-and-drop loading to Deck A or Deck B.
+- **Central Workspace (Dual Decks)**: Deck A (Cyan) and Deck B (Magenta) with vinyl art, scrolling waveform, beat-grid ticks, Camelot key, pitch slider ($\pm 8\%, \pm 16\%$), 3-band Linkwitz-Riley EQ knobs with kill switches, cue pads, loop controls, and transport buttons.
+- **Transition Workspace**: Interactive shared timeline showing stacked incoming/outgoing waveforms, beat-grid and phrase markers, vocal activity overlays, stem regions, planned start/end brackets, bass swap marker, vocal handoff marker, transition style selector, confidence score, and dynamic human-readable explanation card.
+- **Bottom Section**: Master crossfader, master volume fader, transition duration selector (4, 8, 16, 32 bars), Auto-Mix toggle, Next Track Preview deck, and emergency "Mix Now" transition button.
+- **Three Operating Modes**:
+  - **Automatic DJ**: Fully hands-off; Fluxo sequences tracks, detects phrase boundaries, and automates transitions.
+  - **Assisted DJ**: Fluxo suggests optimal transition points and styles; user triggers or adjusts timing.
+  - **Manual DJ**: Full hands-on control of pitch, EQ isolators, cue points, loops, and crossfader.
+

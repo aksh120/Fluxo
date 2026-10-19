@@ -543,6 +543,10 @@ export default function App() {
               <StudioView
                 deckA={deckAState}
                 deckB={deckBState}
+                libraryTracks={tracks}
+                onLoadTrackToDeckA={(t) => handleLoadDeck('A', t)}
+                onLoadTrackToDeckB={(t) => handleLoadDeck('B', t)}
+                onAddToQueue={handleAddToQueue}
                 onUpdateDeckA={(up) => {
                   const engine = audioEngineRef.current;
                   if (engine) {

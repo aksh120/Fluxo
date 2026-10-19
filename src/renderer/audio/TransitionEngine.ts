@@ -10,7 +10,19 @@
 import type { DeckEngine } from './DeckEngine';
 import type { BeatSyncController } from './BeatSyncController';
 
-export type TransitionStyle = 'blend' | 'bass_swap' | 'filter_sweep' | 'echo_out' | 'cut';
+export type TransitionStyle =
+  | 'blend'
+  | 'bass_swap'
+  | 'filter_sweep'
+  | 'echo_out'
+  | 'cut'
+  | 'phrase_beatmix'
+  | 'vocal_crossover'
+  | 'instrumental_handoff'
+  | 'breakdown_build'
+  | 'drop_transition'
+  | 'fallback_crossfade'
+  | 'creative_mashup';
 
 export interface TransitionConfig {
   style: TransitionStyle;
@@ -80,9 +92,16 @@ export class TransitionEngine {
 
     // Configure initial EQ states based on transition style
     if (config.style === 'bass_swap') {
-      // Pre-kill target deck's bass to prevent clashing during approach
       toDeck.setLowGain(0.0);
       fromDeck.setLowGain(1.0);
+    } else if (config.style === 'vocal_crossover') {
+      fromDeck.setLowGain(0.7);
+      toDeck.setLowGain(1.0);
+      toDeck.setMidGain(0.55); // Masking suppression
+    } else if (config.style === 'breakdown_build') {
+      fromDeck.setLowGain(1.0);
+      toDeck.setLowGain(0.0);
+      toDeck.setMidGain(0.7);
     } else if (config.style === 'filter_sweep') {
       fromDeck.setFilterParam(0.0);
       toDeck.setFilterParam(0.0);
@@ -111,26 +130,75 @@ export class TransitionEngine {
     const targetPos = config.fromDeck === 'A' ? 1.0 : -1.0;
 
     switch (config.style) {
+      case 'phrase_beatmix':
       case 'blend': {
-        // Equal-power sinusoidal crossfade ramp
         const crossfader = startPos + (targetPos - startPos) * progress;
         this.setCrossfader(crossfader);
         break;
       }
 
       case 'bass_swap': {
-        // Equal power blend for overall volume
         const crossfader = startPos + (targetPos - startPos) * progress;
         this.setCrossfader(crossfader);
-
-        // Instant bass swap at midpoint (50% progress / bar boundary)
         if (progress < 0.5) {
           fromDeck.setLowGain(1.0);
           toDeck.setLowGain(0.0);
         } else {
-          // Bass snapped!
           fromDeck.setLowGain(0.0);
           toDeck.setLowGain(1.0);
+        }
+        break;
+      }
+
+      case 'vocal_crossover': {
+        if (progress < 0.5) {
+          const stageProg = progress / 0.5;
+          const crossfader = startPos + (0 - startPos) * stageProg;
+          this.setCrossfader(crossfader);
+          toDeck.setMidGain(0.55 + 0.15 * stageProg);
+        } else {
+          const stageProg = (progress - 0.5) / 0.5;
+          const crossfader = 0 + (targetPos - 0) * stageProg;
+          this.setCrossfader(crossfader);
+          fromDeck.setMidGain(Math.max(0.0, 1.0 - stageProg));
+          fromDeck.setHighGain(Math.max(0.0, 1.0 - stageProg));
+          toDeck.setMidGain(0.70 + 0.30 * stageProg);
+        }
+        break;
+      }
+
+      case 'instrumental_handoff': {
+        const crossfader = startPos + (targetPos - startPos) * progress;
+        this.setCrossfader(crossfader);
+        fromDeck.setHighGain(Math.max(0.2, 1.0 - progress));
+        toDeck.setHighGain(Math.min(1.0, 0.2 + progress * 0.8));
+        break;
+      }
+
+      case 'breakdown_build': {
+        if (progress < 0.5) {
+          const crossfader = startPos + (0 - startPos) * (progress / 0.5);
+          this.setCrossfader(crossfader);
+          fromDeck.setLowGain(Math.max(0.2, 1.0 - progress * 1.6));
+        } else {
+          const stageProg = (progress - 0.5) / 0.5;
+          const crossfader = 0 + (targetPos - 0) * stageProg;
+          this.setCrossfader(crossfader);
+          fromDeck.setLowGain(0.0);
+          toDeck.setLowGain(1.0);
+          toDeck.setMidGain(1.0);
+        }
+        break;
+      }
+
+      case 'drop_transition': {
+        if (progress < 0.8) {
+          fromDeck.setFilterParam(progress * 0.6, 1.5);
+        } else {
+          this.setCrossfader(targetPos);
+          fromDeck.setVolume(0.0);
+          toDeck.setLowGain(1.0);
+          toDeck.setFilterParam(0.0);
         }
         break;
       }
@@ -138,21 +206,16 @@ export class TransitionEngine {
       case 'filter_sweep': {
         const crossfader = startPos + (targetPos - startPos) * progress;
         this.setCrossfader(crossfader);
-
-        // Sweep High-Pass filter on outgoing deck up to 4kHz to thin it out
         fromDeck.setFilterParam(progress * 0.85, 1.8);
-        // Incoming deck remains open
         toDeck.setFilterParam(0.0);
         break;
       }
 
       case 'echo_out': {
-        // Outgoing deck plays until 75%, then crossfades and cuts
         if (progress < 0.75) {
           const crossfader = startPos + (targetPos - startPos) * (progress / 0.75) * 0.7;
           this.setCrossfader(crossfader);
         } else {
-          // Sharp cut to incoming deck
           this.setCrossfader(targetPos);
           fromDeck.setVolume(0.0);
         }
@@ -163,6 +226,22 @@ export class TransitionEngine {
         if (progress >= 0.5) {
           this.setCrossfader(targetPos);
         }
+        break;
+      }
+
+      case 'fallback_crossfade': {
+        const crossfader = startPos + (targetPos - startPos) * progress;
+        this.setCrossfader(crossfader);
+        if (progress > 0.5) {
+          fromDeck.setLowGain(Math.max(0.0, (1.0 - progress) * 2));
+        }
+        break;
+      }
+
+      case 'creative_mashup': {
+        this.setCrossfader(0.0);
+        fromDeck.setLowGain(0.0);
+        toDeck.setLowGain(1.0);
         break;
       }
     }

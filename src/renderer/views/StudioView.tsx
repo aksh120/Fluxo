@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Play,
   Pause,
@@ -9,7 +9,13 @@ import {
   RotateCcw,
   Sparkles,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  Cpu,
+  Speaker,
+  Activity,
+  Music,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { RotaryKnob } from '../components/RotaryKnob';
 import { Slider } from '../components/Slider';
@@ -20,11 +26,15 @@ import { CuePads } from '../components/CuePads';
 import { LoopControls } from '../components/LoopControls';
 import { EffectControls } from '../components/EffectControls';
 import { StemMixer } from '../components/StemMixer';
+import { TransitionWorkspace } from '../components/TransitionWorkspace';
+import { StudioLibraryPanel } from '../components/StudioLibraryPanel';
+import { TransitionPlanner, type TransitionFamily } from '../audio/TransitionPlanner';
+import type { DjOperatingMode } from '../audio/DjStudioModeManager';
 import type { LoopLength, LoopState } from '../audio/LoopController';
 import type { EchoSyncBeat, EffectsState } from '../audio/AudioEffectsChain';
 import type { StemPlayerState } from '../audio/StemDeckPlayer';
 import type { CuePadSlot } from '../audio/CuePointManager';
-import type { DeckState } from '../../shared/types';
+import type { DeckState, Track } from '../../shared/types';
 import type { TransitionStyle } from '../audio/TransitionEngine';
 
 export interface StudioViewProps {
@@ -40,6 +50,17 @@ export interface StudioViewProps {
   onSeekDeckA?: (seconds: number) => void;
   onSeekDeckB?: (seconds: number) => void;
   isTransitionActive?: boolean;
+
+  // Integrated Library & Audio Device Props
+  libraryTracks?: Track[];
+  onLoadTrackToDeckA?: (track: Track) => void;
+  onLoadTrackToDeckB?: (track: Track) => void;
+  onAddToQueue?: (track: Track) => void;
+  audioOutputDevice?: string;
+  onSelectAudioOutputDevice?: (deviceId: string) => void;
+  audioDevices?: MediaDeviceInfo[];
+  isAnalyzing?: boolean;
+  analysisStatus?: string;
 
   // Phase 10 Hot Cues, Loops, Effects & Stems
   onActivateLoopA?: (beats: LoopLength) => void;
@@ -77,6 +98,15 @@ export const StudioView: React.FC<StudioViewProps> = ({
   onSeekDeckA,
   onSeekDeckB,
   isTransitionActive = false,
+  libraryTracks = [],
+  onLoadTrackToDeckA,
+  onLoadTrackToDeckB,
+  onAddToQueue,
+  audioOutputDevice = 'Default Speakers (WASAPI)',
+  onSelectAudioOutputDevice,
+  audioDevices = [],
+  isAnalyzing = false,
+  analysisStatus = 'System Ready',
   onActivateLoopA,
   onActivateLoopB,
   onToggleLoopA,
@@ -99,6 +129,10 @@ export const StudioView: React.FC<StudioViewProps> = ({
   onSeparateStemsB
 }) => {
   const [selectedStyle, setSelectedStyle] = useState<TransitionStyle>('bass_swap');
+  const [selectedTransitionFamily, setSelectedTransitionFamily] = useState<TransitionFamily>('vocal_crossover');
+  const [djMode, setDjMode] = useState<DjOperatingMode>('automatic');
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [planner] = useState(() => new TransitionPlanner());
 
   const [deckATab, setDeckATab] = useState<'cues' | 'loops' | 'fx' | 'stems'>('cues');
   const [deckBTab, setDeckBTab] = useState<'cues' | 'loops' | 'fx' | 'stems'>('cues');
@@ -187,19 +221,214 @@ export const StudioView: React.FC<StudioViewProps> = ({
     return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
   };
 
+  const transitionPlan = useMemo(() => {
+    if (!deckA.currentTrack || !deckB.currentTrack) return null;
+    return planner.planTransition(
+      deckA.currentTrack as any,
+      deckA.currentTrack as any,
+      deckB.currentTrack as any,
+      deckB.currentTrack as any,
+      null,
+      null,
+      stemStateA.hasStems,
+      stemStateB.hasStems,
+      selectedTransitionFamily
+    );
+  }, [
+    deckA.currentTrack,
+    deckB.currentTrack,
+    selectedTransitionFamily,
+    stemStateA.hasStems,
+    stemStateB.hasStems
+  ]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '14px' }}>
-      {/* 1. Full-Width 60 FPS Scrolling Waveform Canvas (Stacked Deck A & B) */}
-      <ScrollingWaveformCanvas
-        deckA={deckA}
-        deckB={deckB}
-        height={150}
-        onSeekDeckA={onSeekDeckA}
-        onSeekDeckB={onSeekDeckB}
-      />
+      {/* 0. Professional DJ Studio Top Bar */}
+      <div
+        data-testid="dj-studio-top-bar"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 16px',
+          backgroundColor: 'rgba(15, 23, 42, 0.85)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
+          backdropFilter: 'blur(16px)'
+        }}
+      >
+        {/* Session Name & Live Glow */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span
+              style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--deck-a-primary)',
+                boxShadow: '0 0 10px var(--deck-a-primary)'
+              }}
+            />
+            <span
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 800,
+                fontSize: '14px',
+                letterSpacing: '0.08em',
+                color: '#ffffff'
+              }}
+            >
+              LIVE AI DJ STUDIO
+            </span>
+          </div>
 
-      {/* 2. Dual Decks + Central Mixer Workspace */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px 1fr', gap: '14px', flex: 1, minHeight: 0 }}>
+          {/* Operating Mode Selector */}
+          <div
+            style={{
+              display: 'flex',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              padding: '3px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255, 255, 255, 0.08)'
+            }}
+          >
+            {(['automatic', 'assisted', 'manual'] as DjOperatingMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setDjMode(mode)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  backgroundColor: djMode === mode ? 'var(--deck-a-primary)' : 'transparent',
+                  color: djMode === mode ? '#0B0F19' : 'var(--text-muted)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {mode === 'automatic' ? 'Auto DJ' : mode === 'assisted' ? 'Assisted' : 'Manual'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Center: Audio Device & Master VU Meter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '11px',
+              color: 'var(--text-secondary)',
+              backgroundColor: 'rgba(0, 0, 0, 0.35)',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              border: '1px solid var(--border-subtle)'
+            }}
+          >
+            <Speaker size={14} color="var(--deck-a-primary)" />
+            <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+              {audioOutputDevice}
+            </span>
+          </div>
+
+          {/* Master VU Meter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} title="Master Output Level">
+            <Activity size={14} color="var(--text-muted)" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: '6px',
+                    height: '14px',
+                    borderRadius: '2px',
+                    backgroundColor:
+                      (deckA.isPlaying || deckB.isPlaying) && i < 6
+                        ? '#10B981'
+                        : (deckA.isPlaying || deckB.isPlaying) && i < 7
+                        ? '#F59E0B'
+                        : 'rgba(255, 255, 255, 0.1)'
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: CPU Load & Library Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '11px',
+              fontFamily: 'monospace',
+              color: 'var(--text-muted)',
+              backgroundColor: 'rgba(0, 0, 0, 0.35)',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              border: '1px solid var(--border-subtle)'
+            }}
+          >
+            <Cpu size={12} color="var(--deck-a-primary)" />
+            <span>CPU ~3.8% • 256 smp • 5.8ms</span>
+          </div>
+
+          <button
+            onClick={() => setIsLibraryOpen((prev) => !prev)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              border: isLibraryOpen ? '1px solid var(--deck-a-primary)' : '1px solid var(--border-subtle)',
+              backgroundColor: isLibraryOpen ? 'rgba(0, 242, 254, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+              color: isLibraryOpen ? 'var(--deck-a-primary)' : '#ffffff',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Music size={14} />
+            <span>Library ({libraryTracks.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Workspace Frame with Optional Library Drawer */}
+      <div style={{ display: 'flex', gap: '14px', flex: 1, minHeight: 0 }}>
+        {isLibraryOpen && (
+          <StudioLibraryPanel
+            tracks={libraryTracks}
+            onLoadDeckA={(t) => onLoadTrackToDeckA?.(t)}
+            onLoadDeckB={(t) => onLoadTrackToDeckB?.(t)}
+            onAddToQueue={onAddToQueue}
+            referenceBpm={deckA.currentTrack?.bpm || deckB.currentTrack?.bpm}
+            referenceKey={deckA.currentTrack?.camelotCode || deckB.currentTrack?.camelotCode}
+          />
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '14px', minWidth: 0, overflowY: 'auto' }}>
+          {/* 1. Full-Width 60 FPS Scrolling Waveform Canvas (Stacked Deck A & B) */}
+          <ScrollingWaveformCanvas
+            deckA={deckA}
+            deckB={deckB}
+            height={140}
+            onSeekDeckA={onSeekDeckA}
+            onSeekDeckB={onSeekDeckB}
+          />
+
+          {/* 2. Dual Decks + Central Mixer Workspace */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px 1fr', gap: '14px', flexShrink: 0 }}>
         {/* ========================================================= */}
         {/* VIRTUAL DECK A PANEL                                      */}
         {/* ========================================================= */}
@@ -1148,6 +1377,23 @@ export const StudioView: React.FC<StudioViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 3. Transition Workspace (Signature Visual Subsystem) */}
+      <TransitionWorkspace
+        trackA={deckA.currentTrack as any}
+        trackB={deckB.currentTrack as any}
+        plan={transitionPlan}
+        progress={isTransitionActive ? 0.5 : 0.0}
+        isActive={isTransitionActive}
+        isAnalyzing={isAnalyzing}
+        onTriggerTransition={() => onTriggerTransition?.(selectedTransitionFamily as any)}
+        onSelectFamily={(fam) => {
+          setSelectedTransitionFamily(fam);
+          setSelectedStyle(fam as any);
+        }}
+      />
     </div>
-  );
+  </div>
+</div>
+);
 };

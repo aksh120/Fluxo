@@ -466,3 +466,37 @@ flowchart TD
 - **Required Tests**: Clean Windows VM install and full smoke test.
 - **Risks & Exit Conditions**: False positive antivirus flags. Exit when binary integrity and clean build are verified.
 - **Definition of Done**: Production installer built, tested, documented, and approved for release. (COMPLETED)
+
+---
+
+## Phase 16: Professional AI DJ Engine & Intelligent Live Mixing Studio
+- **Phase ID**: `PHASE-16`
+- **Objective**: Implement the full professional-grade AI DJ mixing studio with vocal-aware crossovers, 9-family transition planning, interactive Transition Workspace, integrated DJ Library, and 3-mode operation (Automatic, Assisted, Manual).
+- **Dependencies**: `PHASE-07`, `PHASE-08`, `PHASE-10`, `PHASE-15`.
+- **Scope & Deliverables**:
+  - Vocal Activity Detection (VAD) and phrase boundary estimation engine (`VocalActivityDetector.ts`).
+  - Professional Transition Planner supporting all 9 transition families with inspectable scoring (`TransitionPlanner.ts`).
+  - Vocal Crossover DSP Engine with dynamic mid-band EQ masking control and phrase-aware vocal handoff (`VocalCrossoverEngine.ts`).
+  - Interactive Transition Workspace UI component with dual-track aligned waveforms, phrase/vocal markers, and real-time explanation card (`TransitionWorkspace.tsx`).
+  - Integrated DJ Studio Library panel with search, filters, drag-and-drop loading to Deck A/B (`StudioLibraryPanel.tsx`).
+  - 3-Mode Operating Switcher (Automatic DJ, Assisted DJ, Manual DJ) and auto-mix coordinator (`DjStudioModeManager.ts`).
+  - DJ Studio Top Bar and Bottom Master Control Strip (`StudioView.tsx`).
+  - End-to-end automated test suite verifying audio engine safety, vocal crossovers, 9 transition families, and UI interactions (`tests/dj_studio_engine.test.tsx`).
+- **Task References**:
+  - `P16-T001`: Vocal Activity Detection (VAD) & Phrase Boundary Estimator (`VocalActivityDetector.ts`).
+  - `P16-T002`: Intelligent 9-Family Transition Planner with inspectable compatibility factors (`TransitionPlanner.ts`).
+  - `P16-T003`: Vocal Crossover Engine with dynamic frequency masking EQ and phrase handoff (`VocalCrossoverEngine.ts`).
+  - `P16-T004`: Interactive Transition Workspace component with dual-track aligned timeline (`TransitionWorkspace.tsx`).
+  - `P16-T005`: Integrated DJ Studio Music Library panel with search, filters, and drag-and-drop (`StudioLibraryPanel.tsx`).
+  - `P16-T006`: Three Operating Modes (Automatic, Assisted, Manual) and auto-mix coordinator (`DjStudioModeManager.ts`).
+  - `P16-T007`: DJ Studio Top Bar and Bottom Master Control Strip integration (`StudioView.tsx`).
+  - `P16-T008`: End-to-end automated test suite for AI DJ Engine & Studio (`tests/dj_studio_engine.test.tsx`).
+- **Acceptance Criteria**:
+  - Genuine audio DSP engine executes real transitions across all 9 families.
+  - Vocal crossover layers outgoing vocal over incoming instrumental, suppresses mid-band masking, and hands off at phrase end without competing vocals.
+  - Transition Workspace visualizes dual aligned waveforms, phrase markers, vocal regions, and displays dynamic human-readable explanation card.
+  - Zero mock data or synthetic pitch sounds; empty decks display "No Track Loaded".
+  - Instant playback (< 250ms) maintained while deep analysis and stems process asynchronously.
+- **Required Tests**: Vitest unit, integration, and DSP test suite in `tests/dj_studio_engine.test.tsx`.
+- **Definition of Done**: All 8 Phase 16 tasks implemented, verified via automated tests, documented in `Tasks.md`, and signed off.
+
