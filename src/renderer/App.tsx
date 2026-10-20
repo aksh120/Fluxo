@@ -156,6 +156,13 @@ export default function App() {
           window.fluxoAPI.getLibraryTracks().then(setTracks).catch(console.error);
         }
       });
+
+      // Listen for library updates (e.g. cache purges)
+      if (window.fluxoAPI.onTracksUpdated) {
+        window.fluxoAPI.onTracksUpdated(() => {
+          window.fluxoAPI.getLibraryTracks().then(setTracks).catch(console.error);
+        });
+      }
     }
 
     // Subscribe to AutopilotEngine track & deck transitions
@@ -471,7 +478,16 @@ export default function App() {
           const arrayBuf = await window.fluxoAPI.readAudioFile(track.filePath);
           buffer = await engine.decoder.decodeAudio(arrayBuf);
         } catch (err: any) {
-          showErrorToast(`Unable to load "${track.title || 'Track'}": ${err?.message || 'File corrupted or truncated'}`);
+          const msg = err?.message || '';
+          if (msg.includes('File not found')) {
+            setTracks((prev) => prev.filter((t) => t.id !== track.id));
+            if (window.fluxoAPI) {
+              window.fluxoAPI.deleteLibraryTrack(track.id).catch(() => {});
+            }
+            showErrorToast(`Removed unavailable track "${track.title}" (file was purged from cache).`);
+          } else {
+            showErrorToast(`Unable to load "${track.title || 'Track'}": ${msg || 'File corrupted or truncated'}`);
+          }
           return;
         }
       } else if (!window.fluxoAPI) {
@@ -514,7 +530,16 @@ export default function App() {
           const arrayBuf = await window.fluxoAPI.readAudioFile(track.filePath);
           buffer = await engine.decoder.decodeAudio(arrayBuf);
         } catch (err: any) {
-          showErrorToast(`Unable to play "${track.title || 'Track'}": ${err?.message || 'File corrupted or truncated'}`);
+          const msg = err?.message || '';
+          if (msg.includes('File not found')) {
+            setTracks((prev) => prev.filter((t) => t.id !== track.id));
+            if (window.fluxoAPI) {
+              window.fluxoAPI.deleteLibraryTrack(track.id).catch(() => {});
+            }
+            showErrorToast(`Removed unavailable track "${track.title}" (file was purged from cache).`);
+          } else {
+            showErrorToast(`Unable to play "${track.title || 'Track'}": ${msg || 'File corrupted or truncated'}`);
+          }
           // Gracefully advance queue to next track
           const next = queueManagerRef.current.advance();
           if (next) {

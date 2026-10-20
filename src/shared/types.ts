@@ -211,6 +211,7 @@ export interface FluxoAPI {
   getYouTubeCacheStats: () => Promise<{ totalBytes: number; trackCount: number; formattedSize: string }>;
   clearYouTubeCache: () => Promise<{ freedBytes: number; deletedCount: number }>;
   onTrackAdded?: (callback: (track: TrackMetadata) => void) => () => void;
+  onTracksUpdated?: (callback: () => void) => () => void;
 
   // Playlist & Album Batch Download & YouTube Login (Phase 12 Extension)
   fetchPlaylistInfo: (urlOrId: string) => Promise<PlaylistMetadata | null>;

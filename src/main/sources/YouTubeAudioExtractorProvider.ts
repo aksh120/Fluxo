@@ -615,6 +615,15 @@ export class YouTubeAudioExtractorProvider implements IMusicSourceProvider {
 
     this.ensureCacheDir();
 
+    if (this.database) {
+      try {
+        this.database.deleteTracksBySource('youtube');
+        this.database.deleteTracksUnderPath(this.cacheDir);
+      } catch (err) {
+        console.warn('Failed to delete cached YouTube tracks from database on clearCache:', err);
+      }
+    }
+
     return { freedBytes, deletedCount };
   }
 
@@ -646,9 +655,27 @@ export class YouTubeAudioExtractorProvider implements IMusicSourceProvider {
   }
 
   /**
-   * Scans existing cached YouTube audio and upserts them into the SQLite library database.
+   * Scans existing cached YouTube audio and upserts them into the SQLite library database,
+   * while pruning any records whose cache files have been removed from disk.
    */
   public syncCacheToDatabase(): TrackMetadata[] {
+    // 1. Prune missing cached tracks from database if their files were deleted from disk
+    if (this.database) {
+      try {
+        const allTracks = this.database.getAllTracks();
+        for (const t of allTracks) {
+          if (t.sourceType === 'youtube' || (t.filePath && t.filePath.startsWith(this.cacheDir))) {
+            if (!fs.existsSync(t.filePath)) {
+              this.database.deleteTrack(t.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to prune missing YouTube cached tracks from database:', err);
+      }
+    }
+
+    // 2. Index currently existing cached tracks into database
     const tracks = this.getCachedTracks();
     if (this.database) {
       for (const track of tracks) {

@@ -78,6 +78,11 @@ const fluxoAPI: FluxoAPI = {
     ipcRenderer.on('library:track-added', handler);
     return () => ipcRenderer.removeListener('library:track-added', handler);
   },
+  onTracksUpdated: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('library:tracks-updated', handler);
+    return () => ipcRenderer.removeListener('library:tracks-updated', handler);
+  },
 
   // Playlist & Album Batch Download & YouTube Login
   fetchPlaylistInfo: (urlOrId) => ipcRenderer.invoke('youtube:fetch-playlist', urlOrId),

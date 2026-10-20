@@ -181,6 +181,19 @@ export class FluxoDatabase {
     return info.changes > 0;
   }
 
+  public deleteTracksBySource(sourceType: string): number {
+    const stmt = this.db.prepare('DELETE FROM tracks WHERE sourceType = ?');
+    const info = stmt.run(sourceType);
+    return info.changes;
+  }
+
+  public deleteTracksUnderPath(dirPath: string): number {
+    const wildcard = `${dirPath}%`;
+    const stmt = this.db.prepare('DELETE FROM tracks WHERE filePath LIKE ?');
+    const info = stmt.run(wildcard);
+    return info.changes;
+  }
+
   public getTrackCount(): number {
     const row = this.db.prepare('SELECT COUNT(*) as count FROM tracks').get() as { count: number };
     return row.count;

@@ -116,6 +116,14 @@ ipcMain.handle('dialog:open-audio-files', async () => {
 // Audio binary file reader for local playback
 ipcMain.handle('audio:read-file', async (_event, filePath: string) => {
   if (!fs.existsSync(filePath)) {
+    // If it was a cached track whose file was deleted/purged, cleanly prune from DB
+    try {
+      const track = database.getTrackByPath(filePath);
+      if (track) {
+        database.deleteTrack(track.id);
+        mainWindow?.webContents.send('library:tracks-updated');
+      }
+    } catch {}
     throw new Error(`File not found: ${filePath}`);
   }
   const buffer = await fs.promises.readFile(filePath);
@@ -129,6 +137,9 @@ const database = new FluxoDatabase({ dbPath });
 const libraryManager = new LibraryManager(database, coversDir);
 
 ipcMain.handle('library:get-tracks', async () => {
+  try {
+    youtubeProvider.syncCacheToDatabase();
+  } catch {}
   return libraryManager.getDatabase().getAllTracks();
 });
 
@@ -393,7 +404,9 @@ ipcMain.handle('youtube:get-cache-stats', async () => {
 });
 
 ipcMain.handle('youtube:clear-cache', async () => {
-  return youtubeProvider.clearCache();
+  const result = await youtubeProvider.clearCache();
+  mainWindow?.webContents.send('library:tracks-updated');
+  return result;
 });
 
 // Playlist & Album Batch Download & YouTube Login Handlers
