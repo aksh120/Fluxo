@@ -478,20 +478,24 @@ app.whenReady().then(() => {
     .catch(() => {});
 
   // Handle Google OAuth/sign-in popups within the same persistent partition
-  ytSession.setWindowOpenHandler((_details) => {
-    return {
-      action: 'allow',
-      overrideBrowserWindowOptions: {
-        width: 520,
-        height: 680,
-        autoHideMenuBar: true,
-        title: 'Sign In — Google / YouTube',
-        webPreferences: {
-          partition: YT_SESSION_PARTITION,
-          sandbox: true
-        }
-      }
-    };
+  app.on('web-contents-created', (_event, contents) => {
+    if (contents.getType() === 'webview') {
+      contents.setWindowOpenHandler((_details) => {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            width: 520,
+            height: 680,
+            autoHideMenuBar: true,
+            title: 'Sign In — Google / YouTube',
+            webPreferences: {
+              partition: YT_SESSION_PARTITION,
+              sandbox: true
+            }
+          }
+        };
+      });
+    }
   });
 
   createWindow();
